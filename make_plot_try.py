@@ -136,8 +136,6 @@ class CreateSinglePlot:
 		#produce filled contour of SNR vs. z vs. Mtotal
 		sc=self.axis.contourf(self.xvals[0],self.yvals[0],self.zvals[0], levels = levels, colors=colors1)
 
-		self.fig.subplots_adjust(right=0.79, left=0.12, top=0.92, bottom=0.1, wspace = 0.00, hspace = 0.0)
-
 		#add colorbar axes for both contour plots
 		cbar_ax = self.fig.add_axes([0.88, 0.55, 0.03, 0.4])
 
@@ -392,8 +390,18 @@ def change_axis_settings(ax, control_dict):
 def make_plot(pid):
 
 	#set up figure environment
+	t_or_f_dict = {'True':True, 'False':False}
 
-	fig, ax = plt.subplots(nrows = int(pid['num_rows'][0]), ncols = int(pid['num_cols'][0]), sharex = True, sharey = True)
+	sharex = True
+	sharey = True
+
+	if 'sharex' in pid.keys():
+		sharex = t_or_f_dict[pid['sharex'][0]]
+
+	if 'sharey' in pid.keys():
+		sharey = t_or_f_dict[pid['sharey'][0]]
+
+	fig, ax = plt.subplots(nrows = int(pid['num_rows'][0]), ncols = int(pid['num_cols'][0]), sharex = sharex, sharey = sharey)
 	ax = ax.ravel()
 
 	control_dict = compile_plot_information(ax, pid)
@@ -432,6 +440,19 @@ def make_plot(pid):
 
 		trans_plot_class.setup_plot()
 
+	fig.subplots_adjust(left=0.12, top=0.92, bottom=0.1)
+
+	if 'gen_spacing' in pid.keys():
+		if pid['gen_spacing'][0] == 'wide':
+			pass
+
+		else:
+			fig.subplots_adjust(wspace=0.0, hspace=0.0)
+
+	else:
+		fig.subplots_adjust(wspace=0.0, hspace=0.0)
+
+
 	adjusted = False
 
 	for axis_string in control_dict.keys():
@@ -439,7 +460,7 @@ def make_plot(pid):
 			continue
 		else:
 			if control_dict[axis_string]['type'] == 'ratio' or control_dict[axis_string]['type'] == 'waterfall':
-				fig.subplots_adjust(right=0.79, left=0.12, top=0.92, bottom=0.1, wspace = 0.00, hspace = 0.0)
+				fig.subplots_adjust(right=0.79)
 				adjusted = True
 
 	#label for axis

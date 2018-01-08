@@ -13,6 +13,11 @@
 num_rows: 2
 num_cols: 2
 
+sharex: False
+#sharey: False
+
+gen_spacing: wide
+
 gen_xlims: 2.0 10.0
 gen_dx: 1.0
 
