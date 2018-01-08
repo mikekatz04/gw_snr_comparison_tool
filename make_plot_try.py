@@ -36,8 +36,8 @@ class PlotVals:
 def find_difference_contour(zout, control_zout):
 	#set indices of loss,gained. Also set rid for when neither curve measures source. inds_check tells the ratio calculator not to control_zout if both SNRs are below 1
 
-	inds_gained = np.where((zout>=SNR_cut) & (control_zout< SNR_cut))
-	inds_lost = np.where((zout<SNR_cut) & (control_zout>=SNR_cut))
+	inds_gained = np.where((zout>=SNR_CUT) & (control_zout< SNR_CUT))
+	inds_lost = np.where((zout<SNR_CUT) & (control_zout>=SNR_CUT))
 	inds_rid = np.where((zout<1.0) & (control_zout<1.0))
 	inds_check = np.where((zout.ravel()<1.0) & (control_zout.ravel()<1.0))[0]
 
@@ -150,7 +150,7 @@ class CreateSinglePlot:
 		colors1 = ['blue', 'green', 'red','purple', 'orange', 'gold','magenta']
 		
 		for j in range(len(self.zvals)):
-			hz = self.axis.contour(self.xvals[j],self.yvals[j],self.zvals[j], np.array([SNR_cut]), colors = colors1[j], linewidths = 1., linestyles= 'solid')
+			hz = self.axis.contour(self.xvals[j],self.yvals[j],self.zvals[j], np.array([SNR_CUT]), colors = colors1[j], linewidths = 1., linestyles= 'solid')
 
 			"""
 			v = np.transpose(hz.collections[0].get_paths()[0].vertices)
@@ -212,19 +212,25 @@ class CreateSinglePlot:
 
 		self.axis.grid(True,linestyle='-',color='0.75')
 
+		title_fontsize = 20
+		if ('label', 'title') in self.label_dict.keys():
+			if ('label', 'title', 'fontsize') in self.label_dict.keys():
+				title_fontsize = float(self.label_dict[('label', 'title', 'fontsize')])
+			self.axis.set_title(r'%s'%self.label_dict[('label', 'title')].replace('*',' '), fontsize=title_fontsize)
+
 		return
 
 
 def compile_plot_information(ax, pid):
 	control_dict = OrderedDict()
-	keys_for_scalar_entry = ['type', ('control', 'name'), ('control', 'label'), ('control', 'index'), ('legend','loc'), ('legend','size'), ('legend','ncol'), ('label','xlabel'), ('label', 'ylabel'), ('label', 'title', 'fontsize'), ('label', 'xlabel', 'fontsize'), ('label', 'ylabel', 'fontsize'), ('limits','dx'), ('limits','dy'), ('limits', 'yscale')]
+	keys_for_scalar_entry = ['type', ('control', 'name'), ('control', 'label'), ('control', 'index'), ('legend','loc'), ('legend','size'), ('legend','ncol'), ('label','xlabel'), ('label', 'title'), ('label', 'ylabel'), ('label', 'title', 'fontsize'), ('label', 'xlabel', 'fontsize'), ('label', 'ylabel', 'fontsize'), ('limits','dx'), ('limits','dy'), ('limits', 'yscale')]
 
 	for i in range(len(ax)):
 		control_dict[str(i)] = {}
 
-	global SNR_cut
+	global SNR_CUT
 	#establish SNR cut
-	SNR_cut = float(pid['SNR_cut'][0])
+	SNR_CUT = float(pid['SNR_CUT'][0])
 
 	for key_name in pid.keys():
 		if key_name[0:5] == 'plot_':
@@ -255,7 +261,7 @@ def read_in_data(control_dict, pid):
 
 		for j, f1 in enumerate(control_dict[axis_string][('file', 'names')]):
 	
-			data = np.genfromtxt(f1, names=True, skip_header=2)
+			data = np.genfromtxt(WORKING_DIRECTORY + '/' + f1, names=True, skip_header=2)
 
 			f = open(f1, 'r')
 
@@ -298,7 +304,7 @@ def read_in_data(control_dict, pid):
 	for k, axis_string in enumerate(control_dict.keys()):
 		if ('control', 'name') in control_dict[axis_string]:
 
-			data = np.genfromtxt(control_dict[axis_string][('control', 'name')], names=True, skip_header=2)
+			data = np.genfromtxt(WORKING_DIRECTORY + '/' + control_dict[axis_string][('control', 'name')], names=True, skip_header=2)
 
 			f = open(f1, 'r')
 
@@ -389,6 +395,10 @@ def change_axis_settings(ax, control_dict):
 
 def make_plot(pid):
 
+	global WORKING_DIRECTORY
+
+	WORKING_DIRECTORY = pid['WORKING_DIRECTORY'][0]
+
 	#set up figure environment
 	t_or_f_dict = {'True':True, 'False':False}
 
@@ -473,13 +483,14 @@ def make_plot(pid):
 	fig.text(0.45, 0.02, r'%s'%(pid['fig_x_label'][0].replace('*',' ')), ha = 'center', fontsize = fig_label_fontsize)
 		
 		
-	plt.show()
-
-	pdb.set_trace()
-	
-
+	if 'show_figure' in pid.keys():
+		if t_or_f_dict[pid['show_figure'][0]] == True:
+			plt.show()
 
 
+	if 'save_figure' in pid.keys():
+		if t_or_f_dict[pid['save_figure'][0]] == True:
+			plt.savefig(WORKING_DIRECTORY + '/' + pid['output_path'][0] + pid['output_name'][0], dpi=200)
 	
 
 
