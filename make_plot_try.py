@@ -78,14 +78,14 @@ def find_difference_contour(zout, control_zout):
 	return diffout2, loss_gain_contour
 
 class CreateSinglePlot:
-	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, legend_dict={}):
+	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, legend_dict={}, extra_dict={}):
 		self.fig = fig
 		self.axis = axis
 		self.xvals = xvals
 		self.yvals = yvals
 		self.zvals = zvals
 
-		self.limits_dict, self.label_dict, self.legend_dict = limits_dict, label_dict, legend_dict
+		self.limits_dict, self.label_dict, self.legend_dict, self.extra_dict = limits_dict, label_dict, legend_dict, extra_dict
 
 	def ratio(self):
 		#sets colormap for ratio comparison plot
@@ -114,7 +114,7 @@ class CreateSinglePlot:
 
 		#establish colorbar and labels for ratio comp contour plot
 
-		cbar_ax2 = self.fig.add_axes([0.88, 0.1, 0.03, 0.4])
+		cbar_ax2 = self.fig.add_axes([0.83, 0.1, 0.03, 0.4])
 		self.fig.colorbar(sc3, cax=cbar_ax2,ticks=np.array([-3.0,-2.0,-1.0,0.0, 1.0,2.0, 3.0]))
 		cbar_ax2.set_yticklabels([r'$10^{%i}$'%i for i in np.arange(-normval2, normval2+1.0, 1.0)], fontsize = 17)
 		cbar_ax2.set_ylabel(r"$\rho_i/\rho_0$", fontsize = 20)
@@ -137,20 +137,25 @@ class CreateSinglePlot:
 		sc=self.axis.contourf(self.xvals[0],self.yvals[0],self.zvals[0], levels = levels, colors=colors1)
 
 		#add colorbar axes for both contour plots
-		cbar_ax = self.fig.add_axes([0.88, 0.55, 0.03, 0.4])
+		cbar_ax = self.fig.add_axes([0.83, 0.55, 0.03, 0.4])
 
 			#establish colorbar and labels for main contour plot
 		self.fig.colorbar(sc, cax=cbar_ax, ticks=levels)
 		cbar_ax.set_yticklabels([int(i) for i in np.delete(levels,-1)], fontsize = 17)
-
+		cbar_ax.set_ylabel(r"$\rho_i$", fontsize = 20)
 		return
 
 	def horizon(self):
 		#sets levels of main contour plot
 		colors1 = ['blue', 'green', 'red','purple', 'orange', 'gold','magenta']
+
+		contour_val = SNR_CUT
+
+		if ('extra', 'snr', 'contour', 'value') in self.extra_dict.keys():
+			contour_val = float(self.extra_dict[('extra', 'snr', 'contour', 'value')])
 		
 		for j in range(len(self.zvals)):
-			hz = self.axis.contour(self.xvals[j],self.yvals[j],self.zvals[j], np.array([SNR_CUT]), colors = colors1[j], linewidths = 1., linestyles= 'solid')
+			hz = self.axis.contour(self.xvals[j],self.yvals[j],self.zvals[j], np.array([contour_val]), colors = colors1[j], linewidths = 1., linestyles= 'solid')
 
 			"""
 			v = np.transpose(hz.collections[0].get_paths()[0].vertices)
@@ -223,7 +228,7 @@ class CreateSinglePlot:
 
 def compile_plot_information(ax, pid):
 	control_dict = OrderedDict()
-	keys_for_scalar_entry = ['type', ('control', 'name'), ('control', 'label'), ('control', 'index'), ('legend','loc'), ('legend','size'), ('legend','ncol'), ('label','xlabel'), ('label', 'title'), ('label', 'ylabel'), ('label', 'title', 'fontsize'), ('label', 'xlabel', 'fontsize'), ('label', 'ylabel', 'fontsize'), ('limits','dx'), ('limits','dy'), ('limits', 'yscale')]
+	keys_for_scalar_entry = ['type', ('control', 'name'), ('control', 'label'), ('control', 'index'), ('legend','loc'), ('legend','size'), ('legend','ncol'), ('label','xlabel'), ('label', 'title'), ('label', 'ylabel'), ('label', 'title', 'fontsize'), ('label', 'xlabel', 'fontsize'), ('label', 'ylabel', 'fontsize'), ('limits','dx'), ('limits','dy'), ('limits', 'yscale'), ('extra','snr','contour','value')]
 
 	for i in range(len(ax)):
 		control_dict[str(i)] = {}
@@ -412,6 +417,8 @@ def make_plot(pid):
 		sharey = t_or_f_dict[pid['sharey'][0]]
 
 	fig, ax = plt.subplots(nrows = int(pid['num_rows'][0]), ncols = int(pid['num_cols'][0]), sharex = sharex, sharey = sharey)
+
+	fig.set_size_inches(float(pid['figure_width'][0]),float(pid['figure_height'][0]))
 	ax = ax.ravel()
 
 	control_dict = compile_plot_information(ax, pid)
@@ -421,6 +428,7 @@ def make_plot(pid):
 		legend_dict = {}
 		label_dict = {}
 		limits_dict = {}
+		extra_dict = {}
 
 		if 'gen_xlims' in pid.keys():
 			limits_dict[('limits','xlims')] = [float(val) for val in pid['gen_xlims']]
@@ -442,9 +450,11 @@ def make_plot(pid):
 				label_dict[key] = control_dict[str(i)][key]
 			if key[0] == 'limits':
 				limits_dict[key] = control_dict[str(i)][key]
+			if key[0] == 'extra':
+				extra_dict[key] = control_dict[str(i)][key]
 
 
-		trans_plot_class = CreateSinglePlot(fig, axis, plot_data[i].return_x_list(),plot_data[i].return_y_list(), plot_data[i].return_z_list(), limits_dict, label_dict, legend_dict)
+		trans_plot_class = CreateSinglePlot(fig, axis, plot_data[i].return_x_list(),plot_data[i].return_y_list(), plot_data[i].return_z_list(), limits_dict, label_dict, legend_dict, extra_dict)
 
 		getattr(trans_plot_class, control_dict[str(i)]['type'])()
 
@@ -482,16 +492,15 @@ def make_plot(pid):
 
 	fig.text(0.45, 0.02, r'%s'%(pid['fig_x_label'][0].replace('*',' ')), ha = 'center', fontsize = fig_label_fontsize)
 		
-		
+
+	if 'save_figure' in pid.keys():
+		if t_or_f_dict[pid['save_figure'][0]] == True:
+			plt.savefig(WORKING_DIRECTORY + '/' + pid['output_path'][0], dpi=200)
+	
 	if 'show_figure' in pid.keys():
 		if t_or_f_dict[pid['show_figure'][0]] == True:
 			plt.show()
 
-
-	if 'save_figure' in pid.keys():
-		if t_or_f_dict[pid['save_figure'][0]] == True:
-			plt.savefig(WORKING_DIRECTORY + '/' + pid['output_path'][0] + pid['output_name'][0], dpi=200)
-	
 
 
 if __name__ == '__main__':

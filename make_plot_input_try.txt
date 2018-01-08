@@ -13,13 +13,16 @@ WORKING_DIRECTORY: .
 
 #legend labels from files come before legend labels from other plots
 
+figure_width: 13.0
+figure_height: 7.0
+
 num_rows: 2
 num_cols: 2
 
-sharex: False
-#sharey: False
+sharex: True
+#sharey: True
 
-gen_spacing: wide
+gen_spacing: close
 
 gen_xlims: 2.0 10.0
 gen_dx: 1.0
@@ -59,13 +62,13 @@ plot_3_type: horizon
 plot_3_legend_size: 13
 plot_3_legend_bbox_to_anchor: 0.0 0.3 0.1 0.5
 plot_3_legend_ncol: 2
+plot_3_extra_snr_contour_value: 100.0
 
 SNR_CUT: 5.0
 
 show_figure: True
 
 save_figure: True
-output_name: test_new.pdf
-output_path: .
+output_path: test_new.pdf
 
 
