@@ -58,11 +58,11 @@ plot_3_file_labels: LISA_prop_curve_early_break_all Classic_LISA_all
 plot_3_indices: 0 1 2
 plot_3_legend_labels: Curve*1  Curve*2 Curve*3 Curve*4 Curve*5
 plot_3_type: horizon
-#plot_3_legend_loc: lower*left
+plot_3_legend_loc: lower*left
 plot_3_legend_size: 13
-plot_3_legend_bbox_to_anchor: 0.0 0.3 0.1 0.5
+#plot_3_legend_bbox_to_anchor: 0.0 0.3 0.1 0.5
 plot_3_legend_ncol: 2
-plot_3_extra_snr_contour_value: 100.0
+plot_3_extra_snr_contour_value: 1000.0
 
 SNR_CUT: 5.0
 

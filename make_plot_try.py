@@ -157,43 +157,43 @@ class CreateSinglePlot:
 		for j in range(len(self.zvals)):
 			hz = self.axis.contour(self.xvals[j],self.yvals[j],self.zvals[j], np.array([contour_val]), colors = colors1[j], linewidths = 1., linestyles= 'solid')
 
-			"""
+			
 			v = np.transpose(hz.collections[0].get_paths()[0].vertices)
 
 			#plot invisible lines for purpose of creating a legend
-			if ('legend', 'labels') in control_dict[axis_string].keys():
-				axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j], label = control_dict[axis_string][('legend', 'labels')][j].replace('*', ' '))
+			if ('legend', 'labels') in self.legend_dict.keys():
+				self.axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j], label = self.legend_dict[('legend', 'labels')][j].replace('*', ' '))
 
 			else:
-				axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j])
-			"""
-		"""
-		if ('legend', 'labels') in control_dict[axis_string].keys():
+				self.axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j])
+			
+		
+		if ('legend', 'labels') in self.legend_dict.keys():
 			#defaults followed by change
 			loc = 'upper left'
-			if ('legend', 'loc') in control_dict[axis_string].keys():
-				loc = control_dict[axis_string][('legend','loc')].replace('*', ' ')
+			if ('legend', 'loc') in self.legend_dict.keys():
+				loc = self.legend_dict[('legend','loc')].replace('*', ' ')
 
 			size = 10
-			if ('legend','size') in control_dict[axis_string].keys():
-				size = int(control_dict[axis_string][('legend','size')])
+			if ('legend','size') in self.legend_dict.keys():
+				size = int(self.legend_dict[('legend','size')])
 
 			bbox_to_anchor = None
-			if ('legend', 'bbox', 'to', 'anchor') in control_dict[axis_string].keys():
-				bbox_to_anchor = tuple(float(i) for i in control_dict[axis_string][('legend', 'bbox', 'to', 'anchor')])
+			if ('legend', 'bbox', 'to', 'anchor') in self.legend_dict.keys():
+				bbox_to_anchor = tuple(float(i) for i in self.legend_dict[('legend', 'bbox', 'to', 'anchor')])
 
 			ncol = 1
-			if ('legend','ncol') in control_dict[axis_string].keys():
-				ncol = int(control_dict[axis_string][('legend','ncol')])	
+			if ('legend','ncol') in self.legend_dict.keys():
+				ncol = int(self.legend_dict[('legend','ncol')])	
 
-			axis.legend(loc=loc, bbox_to_anchor=bbox_to_anchor, ncol=ncol, prop={'size':size})
-
+			self.axis.legend(loc=loc, bbox_to_anchor=bbox_to_anchor, ncol=ncol, prop={'size':size})
+			"""
 			if ('axis', 'xlabel') in control_dict[axis_string].keys():
 				axis.set_xlabel(r'%s'%(control_dict[axis_string][('axis', 'xlabel')].replace('*',' ')))
 
 			if ('axis', 'ylabel') in control_dict[axis_string].keys():
 				axis.set_xlabel(r'%s'%(control_dict[axis_string][('axis', 'ylabel')].replace('*',' ')))
-		"""
+			"""
 
 		return
 
