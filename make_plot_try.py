@@ -208,9 +208,9 @@ class CreateSinglePlot:
 		self.axis.set_yticks(yticks[1:-1])
 
 		if self.limits_dict[('limits', 'yscale')] == 'log':
-			self.axis.set_yticklabels([r'$10^{%i}$'%i for i in yticks[1:-1]])
+			self.axis.set_yticklabels([r'$10^{%i}$'%int(i) for i in yticks[1:-1]])
 		else:
-			self.axis.set_yticklabels(yticks)
+			self.axis.set_yticklabels([r'$%i$'%int(i) for i in yticks[1:-1]])
 
 		self.axis.grid(True,linestyle='-',color='0.75')
 
