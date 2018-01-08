@@ -1,0 +1,83 @@
+
+#Making the Plot
+
+#plot_type choices--> all, ratios, phases, spins, none
+#Put none if you are only generating data
+
+#WD_background --> True or False
+#y_axis_scale --> lin or log
+#Sensitivity_curve_names 
+
+#legend labels from files come before legend labels from other plots
+
+num_rows: 2
+num_cols: 2
+
+gen_xlims: 2.0 10.0
+gen_dx: 1.0
+
+gen_ylims: 0.0 20.0
+gen_dy: 4.0
+gen_yscale: lin
+
+fig_y_label: Redshift
+fig_x_label: Total*Mass*($M_\odot$)
+
+
+plot_0_file_names: Sense_output/HBW_q5_s65_D.txt
+plot_0_file_labels: LISA_prop_curve_all
+plot_0_type: waterfall
+
+plot_1_file_names: Sense_output/HBW_q5_s65_D.txt
+plot_1_file_labels: Classic_LISA_all
+plot_1_type: ratio
+plot_1_control_index: 0
+plot_1_comparison_labels: Classic*LISA Proposed*LISA
+plot_1_comparison_labels_fontsize: 18
+
+
+plot_2_file_names: Sense_output/HBW_q5_s65_D.txt
+plot_2_file_labels: LISA_prop_curve_early_break_all_WD
+plot_2_type: ratio
+plot_2_control_name: Sense_output/HBW_q5_s65_D.txt
+plot_2_control_label: LISA_prop_curve_all
+
+plot_3_file_names: Sense_output/HBW_q5_s65_D.txt Sense_output/HBW_q5_s99_D.txt
+plot_3_file_labels: LISA_prop_curve_early_break_all Classic_LISA_all
+plot_3_indices: 0 1 2
+plot_3_legend_labels: Curve*1  Curve*2 Curve*3 Curve*4 Curve*5
+plot_3_type: horizon
+#plot_3_legend_loc: lower*left
+plot_3_legend_size: 13
+plot_3_legend_bbox_to_anchor: 0.0 0.3 0.1 0.5
+plot_3_legend_ncol: 2
+
+
+#plot_type: all
+
+#phase options --> all,ins,merg,rd
+phase: all
+
+WD_background: True
+
+output_string: test.pdf
+#save_figure: False
+show_figure: True
+
+#dimensions are in inches
+figure_width: 13.0
+figure_height: 8.0
+y_axis_scale: log
+SNR_cut: 5.0
+
+x_min: 2.0
+x_max: 10.0
+dx: 1.0
+
+y_min: 0.0
+y_max: 20.0
+dy: 1.0
+
+
+
+
