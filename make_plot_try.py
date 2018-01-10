@@ -199,21 +199,30 @@ class CreateSinglePlot:
 
 	def setup_plot(self):
 
-		xticks = np.arange(self.limits_dict[('limits','xlims')][0], self.limits_dict[('limits','xlims')][1] + self.limits_dict[('limits','dx')], self.limits_dict[('limits','dx')])
+		xticks = np.arange(float(self.limits_dict[('limits','xlims')][0]), float(self.limits_dict[('limits','xlims')][1]) + float(self.limits_dict[('limits','dx')]), float(self.limits_dict[('limits','dx')]))
+
+		yticks = np.arange(float(self.limits_dict[('limits','ylims')][0]), float(self.limits_dict[('limits','ylims')][1]) + float(self.limits_dict[('limits','dy')]), float(self.limits_dict[('limits','dy')]))
 
 		self.axis.set_xlim(xticks.min(), xticks.max())
-		self.axis.set_xticks(xticks[1:-1])
-		self.axis.set_xticklabels([r'$10^{%i}$'%i for i in xticks[1:-1]])
-
-		yticks = np.arange(self.limits_dict[('limits','ylims')][0], self.limits_dict[('limits','ylims')][1] + self.limits_dict[('limits','dy')], self.limits_dict[('limits','dy')])
-
 		self.axis.set_ylim(yticks.min(), yticks.max())
-		self.axis.set_yticks(yticks[1:-1])
+		
+		if self.extra_dict['gen_spacing'] == 'wide':
+			x_inds = np.arange(len(xticks))
+			y_inds = np.arange(len(yticks))
+
+		else:
+			x_inds = np.arange(1, len(xticks)-1)
+			y_inds = np.arange(1, len(yticks)-1)
+
+		self.axis.set_xticks(xticks[x_inds])
+		self.axis.set_yticks(yticks[y_inds])
+
+		self.axis.set_xticklabels([r'$10^{%i}$'%i for i in xticks[x_inds]])
 
 		if self.limits_dict[('limits', 'yscale')] == 'log':
-			self.axis.set_yticklabels([r'$10^{%i}$'%int(i) for i in yticks[1:-1]])
+			self.axis.set_yticklabels([r'$10^{%i}$'%int(i) for i in yticks[y_inds]])
 		else:
-			self.axis.set_yticklabels([r'$%i$'%int(i) for i in yticks[1:-1]])
+			self.axis.set_yticklabels([r'$%i$'%int(i) for i in yticks[y_inds]])
 
 		self.axis.grid(True,linestyle='-',color='0.75')
 
@@ -222,6 +231,18 @@ class CreateSinglePlot:
 			if ('label', 'title', 'fontsize') in self.label_dict.keys():
 				title_fontsize = float(self.label_dict[('label', 'title', 'fontsize')])
 			self.axis.set_title(r'%s'%self.label_dict[('label', 'title')].replace('*',' '), fontsize=title_fontsize)
+
+		label_fontsize = 20
+		if ('label', 'xlabel') in self.label_dict.keys():
+			if ('label', 'xlabel', 'fontsize') in self.label_dict.keys():
+				label_fontsize = float(self.label_dict[('label', 'xlabel', 'fontsize')])
+			self.axis.set_xlabel(r'%s'%self.label_dict[('label', 'xlabel')].replace('*',' '), fontsize=label_fontsize)
+
+		label_fontsize = 20
+		if ('label', 'ylabel') in self.label_dict.keys():
+			if ('label', 'ylabel', 'fontsize') in self.label_dict.keys():
+				label_fontsize = float(self.label_dict[('label', 'ylabel', 'fontsize')])
+			self.axis.set_ylabel(r'%s'%self.label_dict[('label', 'ylabel')].replace('*',' '), fontsize=label_fontsize)
 
 		return
 
@@ -452,6 +473,11 @@ def make_plot(pid):
 				limits_dict[key] = control_dict[str(i)][key]
 			if key[0] == 'extra':
 				extra_dict[key] = control_dict[str(i)][key]
+
+		extra_dict['gen_spacing'] = 'tight'
+		if 'gen_spacing' in pid.keys():
+			if pid['gen_spacing'][0] == 'wide':
+				extra_dict['gen_spacing'] = 'wide'
 
 
 		trans_plot_class = CreateSinglePlot(fig, axis, plot_data[i].return_x_list(),plot_data[i].return_y_list(), plot_data[i].return_z_list(), limits_dict, label_dict, legend_dict, extra_dict)
