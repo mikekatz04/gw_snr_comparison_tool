@@ -17,6 +17,8 @@ from cycler import cycler
 from matplotlib.colors import ListedColormap
 import matplotlib.patches as mpatches
 from collections import OrderedDict
+import sys
+from scipy.interpolate import interp2d, griddata
 
 #plt.switch_backend('Agg')
 
@@ -33,49 +35,7 @@ class PlotVals:
 	def return_z_list(self):
 		return self.z_arr_list
 
-def find_difference_contour(zout, control_zout):
-	#set indices of loss,gained. Also set rid for when neither curve measures source. inds_check tells the ratio calculator not to control_zout if both SNRs are below 1
 
-	inds_gained = np.where((zout>=SNR_CUT) & (control_zout< SNR_CUT))
-	inds_lost = np.where((zout<SNR_CUT) & (control_zout>=SNR_CUT))
-	inds_rid = np.where((zout<1.0) & (control_zout<1.0))
-	inds_check = np.where((zout.ravel()<1.0) & (control_zout.ravel()<1.0))[0]
-
-	#set diff2 to ratio for purposed of determining raito differences
-	diff2 = zout/control_zout
-
-	#flatten arrays	
-	diffcheck = diff2.ravel()
-	diff2 =  diff2.ravel()
-
-	# the following determines the log10 of the ratio difference if it is extremely small, we neglect and put it as zero (limits chosen to resemble ratios of less than 1.05 and greater than 0.952)
-	i = 0
-	for d in diff2:
-		if i not in inds_check:
-			if d >= 1.05:
-				diff2[i] = np.log10(diff2[i])
-			elif d<= 0.952:
-				diff2[i] = -np.log10(1.0/diff2[i])
-			else:
-				diff2[i] = 0.0
-		else: 
-			diff2[i] = 0.0
-		i+=1
-
-	#reshape difference array for dimensions of contour
-	diffout2 = np.reshape(diff2, np.shape(zout))
-
-	#change inds rid value to zero
-	diffout2[inds_rid] = 0.0
-
-	loss_gain_contour = np.zeros(np.shape(zout))
-
-	j = -1
-	for i in (inds_lost, inds_gained):
-		loss_gain_contour[i] = j
-		j += 2
-
-	return diffout2, loss_gain_contour
 
 class CreateSinglePlot:
 	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, legend_dict={}, extra_dict={}):
@@ -88,6 +48,11 @@ class CreateSinglePlot:
 		self.limits_dict, self.label_dict, self.legend_dict, self.extra_dict = limits_dict, label_dict, legend_dict, extra_dict
 
 	def ratio(self):
+		if len(self.xvals) != 2:
+			raise Exception("Length of vals not equal to 2. Ratio plots must have 2 inputs.")
+
+		if np.shape(self.xvals[0]) != np.shape(self.xvals[1]):
+			self.interpolate_data()
 		#sets colormap for ratio comparison plot
 		cmap2 = cm.seismic
 		#set attributes of ratio comparison contour
@@ -99,7 +64,7 @@ class CreateSinglePlot:
 		#initialize dimensions of loss/gain contour
 
 
-		diffout2, loss_gain_contour = find_difference_contour(self.zvals[0], self.zvals[1])
+		diffout2, loss_gain_contour = self.find_difference_contour()
 
 		#plot ratio contours
 		sc3=self.axis.contourf(self.xvals[0],self.yvals[0],diffout2, levels = levels2, norm=norm2, extend='both', cmap=cmap2)
@@ -119,14 +84,71 @@ class CreateSinglePlot:
 		cbar_ax2.set_yticklabels([r'$10^{%i}$'%i for i in np.arange(-normval2, normval2+1.0, 1.0)], fontsize = 17)
 		cbar_ax2.set_ylabel(r"$\rho_i/\rho_0$", fontsize = 20)
 
-		"""
-		if ('comparison', 'labels') in control_dict[axis_string].keys():
-			fontsize=16
-			if ('comparison', 'labels', 'fontsize') in control_dict[axis_string].keys():
-				fontsize = control_dict[axis_string][('comparison', 'labels','fontsize')]
-			axis.set_title(r'%s vs. %s'%(control_dict[axis_string][('comparison', 'labels')][0].replace('*',' '), control_dict[axis_string][('comparison', 'labels')][1].replace('*',' ')), fontsize=fontsize)
-		"""
 		return
+
+	def interpolate_data(self):
+		points = [np.shape(x_arr)[0]*np.shape(x_arr)[1] for x_arr in self.xvals]
+		min_points = np.argmin(points)
+		max_points = np.argmax(points)
+
+		new_x = np.linspace(self.xvals[min_points].min(), self.xvals[min_points].max(), np.shape(self.xvals[min_points])[1])
+		new_y = np.logspace(np.log10(self.yvals[min_points]).min(), np.log10(self.yvals[min_points]).max(), np.shape(self.xvals[min_points])[0])
+
+		new_x, new_y = np.meshgrid(new_x, new_y)
+
+		new_z = griddata((self.xvals[max_points].ravel(), self.yvals[max_points].ravel()), self.zvals[max_points].ravel(), (new_x, new_y), method='linear')
+		
+		self.xvals[max_points], self.yvals[max_points], self.zvals[max_points] = new_x, new_y, new_z
+		
+		return
+
+
+
+	def find_difference_contour(self):
+		#set indices of loss,gained. Also set rid for when neither curve measures source. inds_check tells the ratio calculator not to control_zout if both SNRs are below 1
+		zout = self.zvals[0]
+		control_zout = self.zvals[1]
+
+		inds_gained = np.where((zout>=SNR_CUT) & (control_zout< SNR_CUT))
+		inds_lost = np.where((zout<SNR_CUT) & (control_zout>=SNR_CUT))
+		inds_rid = np.where((zout<1.0) & (control_zout<1.0))
+		inds_check = np.where((zout.ravel()<1.0) & (control_zout.ravel()<1.0))[0]
+
+		#set diff2 to ratio for purposed of determining raito differences
+		diff2 = zout/control_zout
+
+		#flatten arrays	
+		diffcheck = diff2.ravel()
+		diff2 =  diff2.ravel()
+
+		# the following determines the log10 of the ratio difference if it is extremely small, we neglect and put it as zero (limits chosen to resemble ratios of less than 1.05 and greater than 0.952)
+		i = 0
+		for d in diff2:
+			if i not in inds_check:
+				if d >= 1.05:
+					diff2[i] = np.log10(diff2[i])
+				elif d<= 0.952:
+					diff2[i] = -np.log10(1.0/diff2[i])
+				else:
+					diff2[i] = 0.0
+			else: 
+				diff2[i] = 0.0
+			i+=1
+
+		#reshape difference array for dimensions of contour
+		diffout2 = np.reshape(diff2, np.shape(zout))
+
+		#change inds rid value to zero
+		diffout2[inds_rid] = 0.0
+
+		loss_gain_contour = np.zeros(np.shape(zout))
+
+		j = -1
+		for i in (inds_lost, inds_gained):
+			loss_gain_contour[i] = j
+			j += 2
+
+		return diffout2, loss_gain_contour
 
 	def waterfall(self):
 		#sets levels of main contour plot
@@ -144,6 +166,8 @@ class CreateSinglePlot:
 		cbar_ax.set_yticklabels([int(i) for i in np.delete(levels,-1)], fontsize = 17)
 		cbar_ax.set_ylabel(r"$\rho_i$", fontsize = 20)
 		return
+
+
 
 	def horizon(self):
 		#sets levels of main contour plot
@@ -187,13 +211,7 @@ class CreateSinglePlot:
 				ncol = int(self.legend_dict[('legend','ncol')])	
 
 			self.axis.legend(loc=loc, bbox_to_anchor=bbox_to_anchor, ncol=ncol, prop={'size':size})
-			"""
-			if ('axis', 'xlabel') in control_dict[axis_string].keys():
-				axis.set_xlabel(r'%s'%(control_dict[axis_string][('axis', 'xlabel')].replace('*',' ')))
 
-			if ('axis', 'ylabel') in control_dict[axis_string].keys():
-				axis.set_xlabel(r'%s'%(control_dict[axis_string][('axis', 'ylabel')].replace('*',' ')))
-			"""
 
 		return
 
@@ -247,9 +265,10 @@ class CreateSinglePlot:
 		return
 
 
+
 def compile_plot_information(ax, pid):
 	control_dict = OrderedDict()
-	keys_for_scalar_entry = ['type', ('control', 'name'), ('control', 'label'), ('control', 'index'), ('legend','loc'), ('legend','size'), ('legend','ncol'), ('label','xlabel'), ('label', 'title'), ('label', 'ylabel'), ('label', 'title', 'fontsize'), ('label', 'xlabel', 'fontsize'), ('label', 'ylabel', 'fontsize'), ('limits','dx'), ('limits','dy'), ('limits', 'yscale'), ('extra','snr','contour','value')]
+	keys_for_scalar_entry = ['type', ('control', 'file'), ('control', 'label'), ('control', 'index'), ('legend','loc'), ('legend','size'), ('legend','ncol'), ('label','xlabel'), ('label', 'title'), ('label', 'ylabel'), ('label', 'title', 'fontsize'), ('label', 'xlabel', 'fontsize'), ('label', 'ylabel', 'fontsize'), ('limits','dx'), ('limits','dy'), ('limits', 'yscale'), ('extra','snr','contour','value')]
 
 	for i in range(len(ax)):
 		control_dict[str(i)] = {}
@@ -328,11 +347,11 @@ def read_in_data(control_dict, pid):
 			z[k].append(np.reshape(data[control_dict[axis_string][('file', 'labels')][j]], (num_z_pts,num_M_pts)))
 
 	for k, axis_string in enumerate(control_dict.keys()):
-		if ('control', 'name') in control_dict[axis_string]:
+		if ('control', 'file') in control_dict[axis_string]:
 
-			data = np.genfromtxt(WORKING_DIRECTORY + '/' + control_dict[axis_string][('control', 'name')], names=True, skip_header=2)
+			data = np.genfromtxt(WORKING_DIRECTORY + '/' + control_dict[axis_string][('control', 'file')], names=True, skip_header=2)
 
-			f = open(f1, 'r')
+			f = open(WORKING_DIRECTORY + '/' + control_dict[axis_string][('control', 'file')], 'r')
 
 			#find dimensions of data
 			line = f.readline()
@@ -530,7 +549,8 @@ def make_plot(pid):
 
 
 if __name__ == '__main__':
-	f = open('make_plot_input_try.txt', 'r')
+
+	f = open(sys.argv[1], 'r')
 	lines = f.readlines()
 	lines = [line for line in lines if line[0]!= '#']
 	lines = [line for line in lines if line[0]!= '\n']
@@ -539,7 +559,6 @@ if __name__ == '__main__':
 	for line in lines:
 		if ':' in line:
 			plot_info_dict[line.split()[0][0:-1]] = line.split()[1::]
-
 
 	make_plot(plot_info_dict)
 

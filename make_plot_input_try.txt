@@ -42,7 +42,8 @@ plot_0_type: waterfall
 plot_1_file_names: Sense_output/HBW_q5_s65_D.txt
 plot_1_file_labels: Classic_LISA_all
 plot_1_type: ratio
-plot_1_control_index: 0
+plot_1_control_file: Sense_output/HBW_q5_sn65_D.txt.txt
+plot_1_control_label: LISA_prop_curve_all
 plot_1_label_title: Classic*LISA*vs.*Proposed*LISA
 plot_1_label_title_fontsize: 18
 plot_1_label_xlabel: test2*label
@@ -56,7 +57,7 @@ plot_1_limits_dx: 1.0
 plot_2_file_names: Sense_output/HBW_q5_s65_D.txt
 plot_2_file_labels: LISA_prop_curve_early_break_all_WD
 plot_2_type: ratio
-plot_2_control_name: Sense_output/HBW_q5_s65_D.txt
+plot_2_control_file: Sense_output/HBW_q5_s65_D.txt
 plot_2_control_label: LISA_prop_curve_all
 plot_2_label_ylabel: test*label
 plot_2_label_xlabel: test*label
