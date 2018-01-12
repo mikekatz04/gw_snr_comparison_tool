@@ -1,0 +1,84 @@
+#Comment out with '#' symbol
+
+#Part1
+#Generate Data based on Sensitivity curve
+
+WORKING_DIRECTORY: .
+
+#choose if you want all signal or separated phase signals that also includes full signal (separated signal can be more complicated)
+signal_type: all, ins, merg, rd  
+
+add_wd_noise: Both
+
+generation_type: single
+
+#length of frequency array is optional. Default is 10000. Comment out if not using.
+#freq_length: 10000
+
+generation_output_string: Sense_output/test_test.txt
+
+#input sensitivity curve files (file must have line of headers, with no other entries above. The curves need to be sky-averaged power spectral density (PSD) in units of per root hz. Header must be 'f' for frequency and 'Sn' for PSD. Sky-averaging includes a factor of 3/20 compared to non-sky-averaged.
+
+Sensitivity_curves: LISA_prop_curve.txt Classic_LISA.txt LISA_prop_curve_early_break.txt LISA_prop_curve_less_steep.txt Classic_LISA_prop_behavior.txt
+
+#add in labels of curves for output data set header (must match order of files
+Sensitivity_curve_labels: LISA_prop_curve Classic_LISA LISA_prop_curve_early_break LISA_prop_curve_less_steep Classic_LISA_prop_behavior
+
+#Galactic Background file (same format as above) --> this program creates data of w/ and w/o GB for each sensitivity curve
+Galactic_background_file: WDnoise.txt
+
+#delimiter if different than tab delimited (if not comment out; ex is ,   not ',')
+delimiter:
+
+#number of points
+
+#both axis are scaled with log10. Redshift is created with log10 due to issues in the contours at low z for linear scale
+num_y: 100
+y_low: 0.01
+y_high: 50.0
+yval_name: redshift
+
+num_x: 100
+x_low: 1e2
+x_high: 1e10
+xval_name: total_mass
+
+
+#choose mass ratio for generation (q>=1)
+fixed_parameter_1: 5.0
+par_1_name: mass_ratio
+
+#choose spins (-1.0 to 1.0 if PhenomD or -0.99 to 0.99 for PhenomC)
+fixed_parameter_2: 0.65
+par_2_name: spin_1
+
+fixed_parameter_3: 0.65
+par_3_name: spin_2
+
+fast_generate: True
+fast_generate_Mbase: 1e2
+fast_generate_qbase: 1e-1
+fast_generate_zbase: 0.01
+fast_generate_s1base: 0.99
+fast_generate_s2base: 0.99
+fast_generate_stbase: 1.0
+fast_generate_etbase: 0.0
+
+lisa_averaging_factor: 0.692820323
+
+
+#waveform_generator --> premade file name or lalsimulation
+waveform_generator: waveforms/waveform_q_5_s1_65_s2_65.txt
+
+#*********** IMPORTANT ************ THERE ARE AVERAGING FACTORS WORKED INTO hc AFTER WAVEFORM IS GENREATED BASED ON LISA DESIGN --> DEFAULT IS SQRT(96/200) FROM AVERAGE_SNR.PDF FROM EB NC SB. CHANGE IN PYTHON FILE IF NEEDED
+
+#time_before_merger --> units of years (before end of merger phase based on 1PN formalism, change to FH formalism, which is in both generate_contour_data.py and FD_waveform.py, if want to analyze based on time before merger frequency at ISCO), so 1.0 or less will be safe until close to merger itself. Waveform based on final year of evolution. Will need to change if looking longer back
+time_before_merger: 1.0
+
+#waveform_type --> PhenomC or PhenomD (others can be used with lalsimulation in FD_waveform.py / Produces simple characerstic strain based on hplus. Examine FD_working for more detailed calculation)
+waveform_type: PhenomD
+
+#if phases is True, the ringdown can get very complicated depending on mass ratio. Default is to locate the peak and start when peak begins to decline. You can however choose a frequency at which to start the ringdown for higher mass ratios (comment out if not) This is better with a predefined waveform or you will need to examine lalsimulation output.
+#ringdown_start_freq:
+
+
