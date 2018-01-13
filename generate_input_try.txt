@@ -6,11 +6,18 @@
 WORKING_DIRECTORY: .
 
 #choose if you want all signal or separated phase signals that also includes full signal (separated signal can be more complicated)
-signal_type: all, ins, merg, rd  
+signal_type: all
 
-add_wd_noise: Both
+output_string: test_class_method
 
-generation_type: single
+output_file_type: hdf5
+
+add_wd_noise: True
+
+generation_type: parallel
+
+num_processors: 3
+num_splits: 40
 
 #length of frequency array is optional. Default is 10000. Comment out if not using.
 #freq_length: 10000
@@ -33,29 +40,38 @@ delimiter:
 #number of points
 
 #both axis are scaled with log10. Redshift is created with log10 due to issues in the contours at low z for linear scale
-num_y: 100
+num_y: 10
 y_low: 0.01
 y_high: 50.0
 yval_name: redshift
+yval_unit: None
 
-num_x: 100
-x_low: 1e2
-x_high: 1e10
+num_x: 10
+x_low: 1e5
+x_high: 1e7
 xval_name: total_mass
+xval_unit: SolarMasses
 
 
 #choose mass ratio for generation (q>=1)
 fixed_parameter_1: 5.0
 par_1_name: mass_ratio
+par_1_unit: None
 
 #choose spins (-1.0 to 1.0 if PhenomD or -0.99 to 0.99 for PhenomC)
 fixed_parameter_2: 0.65
 par_2_name: spin_1
+par_2_unit: None
 
 fixed_parameter_3: 0.65
 par_3_name: spin_2
+par_3_unit: None
 
-fast_generate: True
+start_time: 1.0
+end_time: 0.0
+
+hc_generation_type: lal_generate
+
 fast_generate_Mbase: 1e2
 fast_generate_qbase: 1e-1
 fast_generate_zbase: 0.01
@@ -64,11 +80,13 @@ fast_generate_s2base: 0.99
 fast_generate_stbase: 1.0
 fast_generate_etbase: 0.0
 
-lisa_averaging_factor: 0.692820323
+averaging_factor: 0.692820323
+snr_factor: 1.4142135624
 
 
 #waveform_generator --> premade file name or lalsimulation
-waveform_generator: waveforms/waveform_q_5_s1_65_s2_65.txt
+waveform_generator: lalsimulation
+#waveforms/waveform_q_5_s1_65_s2_65.txt
 
 #*********** IMPORTANT ************ THERE ARE AVERAGING FACTORS WORKED INTO hc AFTER WAVEFORM IS GENREATED BASED ON LISA DESIGN --> DEFAULT IS SQRT(96/200) FROM AVERAGE_SNR.PDF FROM EB NC SB. CHANGE IN PYTHON FILE IF NEEDED
 
