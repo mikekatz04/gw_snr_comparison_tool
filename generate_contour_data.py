@@ -9,7 +9,11 @@ from astropy.cosmology import Planck13 as cosmo
 import lal
 import lalsimulation
 from scipy.integrate import quad
-import FD_waveform_working as fdw
+import fd_waveform_generator as fdw
+from scipy.misc import derivative
+from scipy.optimize import fsolve
+from scipy.signal import argrelextrema
+from scipy.interpolate import UnivariateSpline
 
 import sys
 from collections import OrderedDict
@@ -17,6 +21,7 @@ from collections import OrderedDict
 import h5py
 
 Msun=1.989e30
+
 
 
 def parallel_func(num_proc, binaries, hc_generation_type, sig_types, sensitivity_dict):
@@ -29,7 +34,6 @@ def parallel_func(num_proc, binaries, hc_generation_type, sig_types, sensitivity
 
 	i=0
 	for binary in binaries:
-		
 		getattr(binary, hc_generation_type)()
 
 		for sc in sensitivity_dict:
@@ -143,8 +147,27 @@ class CalculateSignalClass:
 	def find_merger_frequency(self):
 		#Flanagan and Hughes
 		#return 0.018*ct.c**3/(ct.G*(m1+m2)*Msun) #hz
+		self.f_mrg = 1.0/(6.0**(3./2.)*ct.pi*(self.M*Msun*ct.G/ct.c**2)*(1+self.z))*ct.c
+		return 
 
-		return 1.0/(6.0**(3./2.)*ct.pi*self.M*(1+self.z))
+	def find_ringdown_frequency(self):
+		check = argrelextrema(self.hc_all, np.greater)[0]
+
+		try:
+			test = self.f_mrg
+
+		except:
+			self.f_mrg = self.find_merger_frequency()	
+
+		if len(check) == 0:
+			func = interp1d(self.f_all, self.hc_all, bounds_error=False, fill_value='extrapolate')
+			deriv = np.asarray([derivative(func, f, dx = 1e-5) for f in self.f_all[1:-1]])
+			check = argrelextrema(deriv, np.greater)[0]
+			check = check[check>np.where(self.f_all>=self.f_mrg)[0][0]]
+
+		
+		self.f_rd = self.f_all[check[0]]
+		return
 
 	def find_snr(self, sig_type, sensitivity_function):
 		if self.f_all == []:
@@ -153,15 +176,57 @@ class CalculateSignalClass:
 		if sig_type == 'all':
 			f_in, hc_in = self.f_all, self.hc_all
 
+		elif sig_type == 'ins':
+			try:
+				test = self.f_mrg
+
+			except AttributeError:
+				self.find_merger_frequency()
+			
+			f_in, hc_in = self.f_all[self.f_all<self.f_mrg], self.hc_all[self.f_all<self.f_mrg]
+
+		elif sig_type == 'mrg':
+			try:
+				test = self.f_mrg
+
+			except AttributeError:
+				self.find_merger_frequency()	
+
+			try:
+				test = self.f_rd
+
+			except AttributeError:
+				self.find_ringdown_frequency()	
+
+			inds = np.where((self.f_all>=self.f_mrg) & (self.f_all<=self.f_rd))[0]
+
+			f_in, hc_in = self.f_all[inds], self.hc_all[inds]
+
+		elif sig_type == 'rd':
+			try:
+				test = self.f_rd
+
+			except AttributeError:
+				self.find_ringdown_frequency()	
+
+			self.find_ringdown_frequency()
+			f_in, hc_in = self.f_all[self.f_all>self.f_rd], self.hc_all[self.f_all>self.f_rd]
+
+			#take first derivative and interpolate to find where first derivative is zero
+			#this will represent the local maximum in the signal
+
+
+			#if the first derivative never equals zero, find second derivative and interpolate
+			#find where second derivative equals zero representing inflection point of signal from positive 2nd derivative to negative where the merger ends and ringdown begins
+
+
+
 		if len(f_in) == 0:
 			return 1e-30
 
 		snr_integrand = interp1d(f_in, 1.0/f_in * (hc_in/sensitivity_function(f_in))**2, bounds_error = False, fill_value=1e-30)
 
 		return np.sqrt(quad(snr_integrand, f_in[0], f_in[-1])[0])*self.snr_factor
-
-	def delete_self(self):
-		return
 
 class file_read_out:
 	def __init__(self, file_type, output_string, output_dict, num_x, num_y, xval_name, yval_name, par_1_name, par_2_name, par_3_name, units_dict={}, added_note=''):
@@ -300,7 +365,6 @@ def generate_contour_data(pid):
 	xvals = np.logspace(np.log10(float(pid['x_low'][0])),np.log10(float(pid['x_high'][0])), num_x)
 	yvals = np.logspace(np.log10(float(pid['y_low'][0])),np.log10(float(pid['y_high'][0])), num_y)
 
-
 	#Additional Parameters
 
 	#mass ratio entry (b is for base, but mass ratio should not change becuase it changes the nature of the waveform)
@@ -369,6 +433,7 @@ def generate_contour_data(pid):
 
 	find_all = [CalculateSignalClass(input_dict['total_mass'][j], input_dict['mass_ratio'][j], input_dict['redshift'][j], input_dict['spin_1'][j], input_dict['spin_2'][j], input_dict['start_time'], input_dict['end_time'], pid['waveform_type'][0], extra_dict) for j in range(len(xvals))]
 
+	st = time.time()
 	if pid['generation_type'][0] == 'parallel':
 		num_processors = 4
 		num_splits = 100
@@ -385,7 +450,6 @@ def generate_contour_data(pid):
 		find_split = np.split(find_all,split_inds)
 
 		#start time ticker
-		st = time.time()
 
 		args = []
 		for i, find_part in enumerate(find_split):

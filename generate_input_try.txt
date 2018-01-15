@@ -6,13 +6,13 @@
 WORKING_DIRECTORY: .
 
 #choose if you want all signal or separated phase signals that also includes full signal (separated signal can be more complicated)
-signal_type: all
+signal_type: all ins mrg rd
 
 output_string: test_class_method
 
 output_file_type: hdf5
 
-add_wd_noise: True
+add_wd_noise: Both
 
 generation_type: parallel
 
@@ -41,9 +41,9 @@ delimiter:
 
 #both axis are scaled with log10. Redshift is created with log10 due to issues in the contours at low z for linear scale
 num_y: 10
-y_low: 0.01
-y_high: 50.0
-yval_name: redshift
+y_low: 0.001
+y_high: 1.0
+yval_name: mass_ratio
 yval_unit: None
 
 num_x: 10
@@ -54,8 +54,8 @@ xval_unit: SolarMasses
 
 
 #choose mass ratio for generation (q>=1)
-fixed_parameter_1: 5.0
-par_1_name: mass_ratio
+fixed_parameter_1: 1.0
+par_1_name: redshift
 par_1_unit: None
 
 #choose spins (-1.0 to 1.0 if PhenomD or -0.99 to 0.99 for PhenomC)
