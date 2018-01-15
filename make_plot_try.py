@@ -19,6 +19,7 @@ import matplotlib.patches as mpatches
 from collections import OrderedDict
 import sys
 from scipy.interpolate import interp2d, griddata
+from astropy.io import ascii
 
 #plt.switch_backend('Agg')
 
@@ -287,7 +288,7 @@ class Horizon(CreateSinglePlot):
 
 def compile_plot_information(ax, pid):
 	control_dict = OrderedDict()
-	keys_for_scalar_entry = ['type', ('control', 'file'), ('control', 'label'), ('control', 'index'), ('legend','loc'), ('legend','size'), ('legend','ncol'), ('label','xlabel'), ('label', 'title'), ('label', 'ylabel'), ('label', 'title', 'fontsize'), ('label', 'xlabel', 'fontsize'), ('label', 'ylabel', 'fontsize'), ('limits','dx'), ('limits','dy'), ('limits', 'yscale'), ('extra','snr','contour','value')]
+	keys_for_scalar_entry = ['type', ('control', 'file'), ('control', 'label'), ('control', 'index'), ('legend','loc'), ('legend','size'), ('legend','ncol'), ('label','xlabel'), ('label', 'title'), ('label', 'ylabel'), ('label', 'title', 'fontsize'), ('label', 'xlabel', 'fontsize'), ('label', 'ylabel', 'fontsize'), ('limits','dx'), ('limits','dy'), ('limits', 'yscale'), ('extra','snr','contour','value'), ('x','data','column','label'), ('y','data','column','label')]
 
 	for i in range(len(ax)):
 		control_dict[str(i)] = {}
@@ -300,6 +301,8 @@ def compile_plot_information(ax, pid):
 		if key_name[0:5] == 'plot_':
 
 			axis_string = key_name.split('_')[1]
+			if axis_string not in control_dict.keys():
+				continue
 			names = key_name.split('_')[2::]
 			if len(names) > 1:
 				key = tuple(name for name in names)
@@ -325,45 +328,39 @@ def read_in_data(control_dict, pid):
 
 		for j, f1 in enumerate(control_dict[axis_string][('file', 'names')]):
 	
-			data = np.genfromtxt(WORKING_DIRECTORY + '/' + f1, names=True, skip_header=2)
+			data = ascii.read(WORKING_DIRECTORY + '/' + f1)
 
-			f = open(f1, 'r')
+			x_col_name = 'x'
+			if ('x','data','column','label') in control_dict.keys():
+				x_col_name = control_dict[('x','data','column','label')]
+			elif 'x_general_column_label' in pid.keys():
+				x_col_name = pid['x_general_column_label'][0]
 
-			#find dimensions of data
-			line = f.readline()
-			line = line.replace('\n','')
-			i=0
-			while line[i] != '=':
-				i+= 1
-			i += 1
-			#set Mass points
-			num_M_pts = int(line[i::])
+			y_col_name = 'y'
+			if ('y','data','column','label') in control_dict.keys():
+				y_col_name = control_dict[('y','data','column','label')]
 
+			elif 'y_general_column_label' in pid.keys():
+				y_col_name = pid['y_general_column_label'][0]
 
-			line = f.readline()
-			line = line.replace('\n','')
-			i=0
-			while line[i] != '=':
-				i+= 1
-			i += 1
-			#set redshift points
-			num_z_pts = int(line[i::])
+			num_x_pts = len(np.unique(data[x_col_name]))
+			num_y_pts = len(np.unique(data[y_col_name]))
 
-			x[k].append(np.log10(np.reshape(data['M_s'], (num_z_pts,num_M_pts))))
+			x[k].append(np.log10(np.reshape(data[x_col_name], (num_y_pts,num_x_pts))))
 
 			if ('limits', 'yscale') in control_dict[axis_string].keys():
 				if control_dict[axis_string][('limits', 'yscale')] == 'lin':
-					y[k].append(np.reshape(data['z'], (num_z_pts,num_M_pts)))
+					y[k].append(np.reshape(data[y_col_name], (num_z_pts,num_M_pts)))
 				else:
-					y[k].append(np.log10(np.reshape(data['z'], (num_z_pts,num_M_pts))))
+					y[k].append(np.log10(np.reshape(data[y_col_name], (num_y_pts,num_x_pts))))
 
 			else:
 				if pid['gen_yscale'][0] == 'lin':
-					y[k].append(np.reshape(data['z'], (num_z_pts,num_M_pts)))
+					y[k].append(np.reshape(data[y_col_name], (num_y_pts,num_x_pts)))
 				else:
-					y[k].append(np.log10(np.reshape(data['z'], (num_z_pts,num_M_pts))))
+					y[k].append(np.log10(np.reshape(data[y_col_name], (num_y_pts,num_x_pts))))
 
-			z[k].append(np.reshape(data[control_dict[axis_string][('file', 'labels')][j]], (num_z_pts,num_M_pts)))
+			z[k].append(np.reshape(data[control_dict[axis_string][('file', 'labels')][j]], (num_y_pts,num_x_pts)))
 
 	for k, axis_string in enumerate(control_dict.keys()):
 		if ('control', 'file') in control_dict[axis_string]:
@@ -392,22 +389,22 @@ def read_in_data(control_dict, pid):
 			#set redshift points
 			num_z_pts = int(line[i::])
 
-			x[k].append(np.log10(np.reshape(data['M_s'], (num_z_pts,num_M_pts))))
+			x[k].append(np.log10(np.reshape(data[x_col_name], (num_y_pts,num_x_pts))))
 
 			if ('limits', 'yscale') in control_dict[axis_string].keys():
 				if control_dict[axis_string][('limits', 'yscale')] == 'lin':
-					y[k].append(np.reshape(data['z'], (num_z_pts,num_M_pts)))
+					y[k].append(np.reshape(data[y_col_name], (num_y_pts,num_x_pts)))
 				else:
-					y[k].append(np.log10(np.reshape(data['z'], (num_z_pts,num_M_pts))))
+					y[k].append(np.log10(np.reshape(data[y_col_name], (num_y_pts,num_x_pts))))
 
 			else:
 				if pid['gen_yscale'][0] == 'lin':
-					y[k].append(np.reshape(data['z'], (num_z_pts,num_M_pts)))
+					y[k].append(np.reshape(data[y_col_name], (num_y_pts,num_x_pts)))
 				else:
-					y[k].append(np.log10(np.reshape(data['z'], (num_z_pts,num_M_pts))))
+					y[k].append(np.log10(np.reshape(data[y_col_name], (num_y_pts,num_x_pts))))
 
 
-			z[k].append(np.reshape(data[control_dict[axis_string][('control', 'label')]], (num_z_pts,num_M_pts)))
+			z[k].append(np.reshape(data[control_dict[axis_string][('control', 'label')]], (num_y_pts,num_x_pts)))
 
 		if ('control', 'index') in control_dict[axis_string]:
 			index = int(control_dict[axis_string][('control', 'index')])
@@ -462,7 +459,11 @@ def plot_main(pid):
 	fig, ax = plt.subplots(nrows = int(pid['num_rows'][0]), ncols = int(pid['num_cols'][0]), sharex = sharex, sharey = sharey)
 
 	fig.set_size_inches(float(pid['figure_width'][0]),float(pid['figure_height'][0]))
-	ax = ax.ravel()
+
+	try:
+		ax = ax.ravel()
+	except AttributeError:
+		ax = [ax]
 
 	control_dict = compile_plot_information(ax, pid)
 	plot_data = read_in_data(control_dict, pid)
