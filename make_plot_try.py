@@ -47,174 +47,6 @@ class CreateSinglePlot:
 
 		self.limits_dict, self.label_dict, self.legend_dict, self.extra_dict = limits_dict, label_dict, legend_dict, extra_dict
 
-	def ratio(self):
-		if len(self.xvals) != 2:
-			raise Exception("Length of vals not equal to 2. Ratio plots must have 2 inputs.")
-
-		if np.shape(self.xvals[0]) != np.shape(self.xvals[1]):
-			self.interpolate_data()
-		#sets colormap for ratio comparison plot
-		cmap2 = cm.seismic
-		#set attributes of ratio comparison contour
-		normval2 = 2.0
-		num_contours2 = 40 #must be even
-		levels2 = np.linspace(-normval2, normval2,num_contours2)
-		norm2 = colors.Normalize(-normval2, normval2)
-
-		#initialize dimensions of loss/gain contour
-
-
-		diffout2, loss_gain_contour = self.find_difference_contour()
-
-		#plot ratio contours
-		sc3=self.axis.contourf(self.xvals[0],self.yvals[0],diffout2, levels = levels2, norm=norm2, extend='both', cmap=cmap2)
-
-		#toggle line contours of orders of magnitude of ratio comparisons
-		#ax[w].contour(xout,yout,Diffout2, np.array([-2.0, -1.0,1.0, 2.0]), norm=norm2, extend='both', colors = 'grey', linewidths = 1.0, linestyles= 'dashed')
-
-		#custom way to get loss/gain to be -1 for loss and +1 for gain
-
-		self.axis.contour(self.xvals[0],self.yvals[0],loss_gain_contour,1, colors = 'grey', linewidths = 2)
-		#axis.set_ylim(float(pid['y_min'][0]), float(pid['y_max'][0]))
-
-		#establish colorbar and labels for ratio comp contour plot
-
-		cbar_ax2 = self.fig.add_axes([0.83, 0.1, 0.03, 0.4])
-		self.fig.colorbar(sc3, cax=cbar_ax2,ticks=np.array([-3.0,-2.0,-1.0,0.0, 1.0,2.0, 3.0]))
-		cbar_ax2.set_yticklabels([r'$10^{%i}$'%i for i in np.arange(-normval2, normval2+1.0, 1.0)], fontsize = 17)
-		cbar_ax2.set_ylabel(r"$\rho_i/\rho_0$", fontsize = 20)
-
-		return
-
-	def interpolate_data(self):
-		points = [np.shape(x_arr)[0]*np.shape(x_arr)[1] for x_arr in self.xvals]
-		min_points = np.argmin(points)
-		max_points = np.argmax(points)
-
-		new_x = np.linspace(self.xvals[min_points].min(), self.xvals[min_points].max(), np.shape(self.xvals[min_points])[1])
-		new_y = np.logspace(np.log10(self.yvals[min_points]).min(), np.log10(self.yvals[min_points]).max(), np.shape(self.xvals[min_points])[0])
-
-		new_x, new_y = np.meshgrid(new_x, new_y)
-
-		new_z = griddata((self.xvals[max_points].ravel(), self.yvals[max_points].ravel()), self.zvals[max_points].ravel(), (new_x, new_y), method='linear')
-		
-		self.xvals[max_points], self.yvals[max_points], self.zvals[max_points] = new_x, new_y, new_z
-		
-		return
-
-
-
-	def find_difference_contour(self):
-		#set indices of loss,gained. Also set rid for when neither curve measures source. inds_check tells the ratio calculator not to control_zout if both SNRs are below 1
-		zout = self.zvals[0]
-		control_zout = self.zvals[1]
-
-		inds_gained = np.where((zout>=SNR_CUT) & (control_zout< SNR_CUT))
-		inds_lost = np.where((zout<SNR_CUT) & (control_zout>=SNR_CUT))
-		inds_rid = np.where((zout<1.0) & (control_zout<1.0))
-		inds_check = np.where((zout.ravel()<1.0) & (control_zout.ravel()<1.0))[0]
-
-		#set diff2 to ratio for purposed of determining raito differences
-		diff2 = zout/control_zout
-
-		#flatten arrays	
-		diffcheck = diff2.ravel()
-		diff2 =  diff2.ravel()
-
-		# the following determines the log10 of the ratio difference if it is extremely small, we neglect and put it as zero (limits chosen to resemble ratios of less than 1.05 and greater than 0.952)
-		i = 0
-		for d in diff2:
-			if i not in inds_check:
-				if d >= 1.05:
-					diff2[i] = np.log10(diff2[i])
-				elif d<= 0.952:
-					diff2[i] = -np.log10(1.0/diff2[i])
-				else:
-					diff2[i] = 0.0
-			else: 
-				diff2[i] = 0.0
-			i+=1
-
-		#reshape difference array for dimensions of contour
-		diffout2 = np.reshape(diff2, np.shape(zout))
-
-		#change inds rid value to zero
-		diffout2[inds_rid] = 0.0
-
-		loss_gain_contour = np.zeros(np.shape(zout))
-
-		j = -1
-		for i in (inds_lost, inds_gained):
-			loss_gain_contour[i] = j
-			j += 2
-
-		return diffout2, loss_gain_contour
-
-	def waterfall(self):
-		#sets levels of main contour plot
-		colors1 = ['None','darkblue', 'blue', 'deepskyblue', 'aqua','greenyellow', 'orange', 'red','darkred']
-		levels = np.array([0.,10,20,50,100,200,500,1000,3000,1e6])
-		
-		#produce filled contour of SNR vs. z vs. Mtotal
-		sc=self.axis.contourf(self.xvals[0],self.yvals[0],self.zvals[0], levels = levels, colors=colors1)
-
-		#add colorbar axes for both contour plots
-		cbar_ax = self.fig.add_axes([0.83, 0.55, 0.03, 0.4])
-
-			#establish colorbar and labels for main contour plot
-		self.fig.colorbar(sc, cax=cbar_ax, ticks=levels)
-		cbar_ax.set_yticklabels([int(i) for i in np.delete(levels,-1)], fontsize = 17)
-		cbar_ax.set_ylabel(r"$\rho_i$", fontsize = 20)
-		return
-
-
-
-	def horizon(self):
-		#sets levels of main contour plot
-		colors1 = ['blue', 'green', 'red','purple', 'orange', 'gold','magenta']
-
-		contour_val = SNR_CUT
-
-		if ('extra', 'snr', 'contour', 'value') in self.extra_dict.keys():
-			contour_val = float(self.extra_dict[('extra', 'snr', 'contour', 'value')])
-		
-		for j in range(len(self.zvals)):
-			hz = self.axis.contour(self.xvals[j],self.yvals[j],self.zvals[j], np.array([contour_val]), colors = colors1[j], linewidths = 1., linestyles= 'solid')
-
-			
-			v = np.transpose(hz.collections[0].get_paths()[0].vertices)
-
-			#plot invisible lines for purpose of creating a legend
-			if ('legend', 'labels') in self.legend_dict.keys():
-				self.axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j], label = self.legend_dict[('legend', 'labels')][j].replace('*', ' '))
-
-			else:
-				self.axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j])
-			
-		
-		if ('legend', 'labels') in self.legend_dict.keys():
-			#defaults followed by change
-			loc = 'upper left'
-			if ('legend', 'loc') in self.legend_dict.keys():
-				loc = self.legend_dict[('legend','loc')].replace('*', ' ')
-
-			size = 10
-			if ('legend','size') in self.legend_dict.keys():
-				size = int(self.legend_dict[('legend','size')])
-
-			bbox_to_anchor = None
-			if ('legend', 'bbox', 'to', 'anchor') in self.legend_dict.keys():
-				bbox_to_anchor = tuple(float(i) for i in self.legend_dict[('legend', 'bbox', 'to', 'anchor')])
-
-			ncol = 1
-			if ('legend','ncol') in self.legend_dict.keys():
-				ncol = int(self.legend_dict[('legend','ncol')])	
-
-			self.axis.legend(loc=loc, bbox_to_anchor=bbox_to_anchor, ncol=ncol, prop={'size':size})
-
-
-		return
-
 	def setup_plot(self):
 
 		xticks = np.arange(float(self.limits_dict[('limits','xlims')][0]), float(self.limits_dict[('limits','xlims')][1]) + float(self.limits_dict[('limits','dx')]), float(self.limits_dict[('limits','dx')]))
@@ -263,6 +95,195 @@ class CreateSinglePlot:
 			self.axis.set_ylabel(r'%s'%self.label_dict[('label', 'ylabel')].replace('*',' '), fontsize=label_fontsize)
 
 		return
+
+
+	def interpolate_data(self):
+		points = [np.shape(x_arr)[0]*np.shape(x_arr)[1] for x_arr in self.xvals]
+		min_points = np.argmin(points)
+		max_points = np.argmax(points)
+
+		new_x = np.linspace(self.xvals[min_points].min(), self.xvals[min_points].max(), np.shape(self.xvals[min_points])[1])
+		new_y = np.logspace(np.log10(self.yvals[min_points]).min(), np.log10(self.yvals[min_points]).max(), np.shape(self.xvals[min_points])[0])
+
+		new_x, new_y = np.meshgrid(new_x, new_y)
+
+		new_z = griddata((self.xvals[max_points].ravel(), self.yvals[max_points].ravel()), self.zvals[max_points].ravel(), (new_x, new_y), method='linear')
+		
+		self.xvals[max_points], self.yvals[max_points], self.zvals[max_points] = new_x, new_y, new_z
+		
+		return
+
+
+class Ratio(CreateSinglePlot):
+	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, legend_dict={}, extra_dict={}):
+
+		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals, limits_dict, label_dict, legend_dict, extra_dict)
+
+
+
+	def make_plot(self):
+		if len(self.xvals) != 2:
+			raise Exception("Length of vals not equal to 2. Ratio plots must have 2 inputs.")
+
+		if np.shape(self.xvals[0]) != np.shape(self.xvals[1]):
+			self.interpolate_data()
+		#sets colormap for ratio comparison plot
+		cmap2 = cm.seismic
+		#set attributes of ratio comparison contour
+		normval2 = 2.0
+		num_contours2 = 40 #must be even
+		levels2 = np.linspace(-normval2, normval2,num_contours2)
+		norm2 = colors.Normalize(-normval2, normval2)
+
+		#initialize dimensions of loss/gain contour
+
+
+		diffout2, loss_gain_contour = self.find_difference_contour()
+
+		#plot ratio contours
+		sc3=self.axis.contourf(self.xvals[0],self.yvals[0],diffout2, levels = levels2, norm=norm2, extend='both', cmap=cmap2)
+
+		#toggle line contours of orders of magnitude of ratio comparisons
+		#ax[w].contour(xout,yout,Diffout2, np.array([-2.0, -1.0,1.0, 2.0]), norm=norm2, extend='both', colors = 'grey', linewidths = 1.0, linestyles= 'dashed')
+
+		#custom way to get loss/gain to be -1 for loss and +1 for gain
+
+		self.axis.contour(self.xvals[0],self.yvals[0],loss_gain_contour,1, colors = 'grey', linewidths = 2)
+		#axis.set_ylim(float(pid['y_min'][0]), float(pid['y_max'][0]))
+
+		#establish colorbar and labels for ratio comp contour plot
+
+		cbar_ax2 = self.fig.add_axes([0.83, 0.1, 0.03, 0.4])
+		self.fig.colorbar(sc3, cax=cbar_ax2,ticks=np.array([-3.0,-2.0,-1.0,0.0, 1.0,2.0, 3.0]))
+		cbar_ax2.set_yticklabels([r'$10^{%i}$'%i for i in np.arange(-normval2, normval2+1.0, 1.0)], fontsize = 17)
+		cbar_ax2.set_ylabel(r"$\rho_i/\rho_0$", fontsize = 20)
+
+		return
+
+
+	def find_difference_contour(self):
+		#set indices of loss,gained. Also set rid for when neither curve measures source. inds_check tells the ratio calculator not to control_zout if both SNRs are below 1
+		zout = self.zvals[0]
+		control_zout = self.zvals[1]
+
+		inds_gained = np.where((zout>=SNR_CUT) & (control_zout< SNR_CUT))
+		inds_lost = np.where((zout<SNR_CUT) & (control_zout>=SNR_CUT))
+		inds_rid = np.where((zout<1.0) & (control_zout<1.0))
+		inds_check = np.where((zout.ravel()<1.0) & (control_zout.ravel()<1.0))[0]
+
+		#set diff2 to ratio for purposed of determining raito differences
+		diff2 = zout/control_zout
+
+		#flatten arrays	
+		diffcheck = diff2.ravel()
+		diff2 =  diff2.ravel()
+
+		# the following determines the log10 of the ratio difference if it is extremely small, we neglect and put it as zero (limits chosen to resemble ratios of less than 1.05 and greater than 0.952)
+		i = 0
+		for d in diff2:
+			if i not in inds_check:
+				if d >= 1.05:
+					diff2[i] = np.log10(diff2[i])
+				elif d<= 0.952:
+					diff2[i] = -np.log10(1.0/diff2[i])
+				else:
+					diff2[i] = 0.0
+			else: 
+				diff2[i] = 0.0
+			i+=1
+
+		#reshape difference array for dimensions of contour
+		diffout2 = np.reshape(diff2, np.shape(zout))
+
+		#change inds rid value to zero
+		diffout2[inds_rid] = 0.0
+
+		loss_gain_contour = np.zeros(np.shape(zout))
+
+		j = -1
+		for i in (inds_lost, inds_gained):
+			loss_gain_contour[i] = j
+			j += 2
+
+		return diffout2, loss_gain_contour
+
+
+class Waterfall(CreateSinglePlot):
+	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, legend_dict={}, extra_dict={}):
+
+		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals, limits_dict, label_dict, legend_dict, extra_dict)
+
+	def make_plot(self):
+		#sets levels of main contour plot
+		colors1 = ['None','darkblue', 'blue', 'deepskyblue', 'aqua','greenyellow', 'orange', 'red','darkred']
+		levels = np.array([0.,10,20,50,100,200,500,1000,3000,1e6])
+		
+		#produce filled contour of SNR vs. z vs. Mtotal
+		sc=self.axis.contourf(self.xvals[0],self.yvals[0],self.zvals[0], levels = levels, colors=colors1)
+
+		#add colorbar axes for both contour plots
+		cbar_ax = self.fig.add_axes([0.83, 0.55, 0.03, 0.4])
+
+			#establish colorbar and labels for main contour plot
+		self.fig.colorbar(sc, cax=cbar_ax, ticks=levels)
+		cbar_ax.set_yticklabels([int(i) for i in np.delete(levels,-1)], fontsize = 17)
+		cbar_ax.set_ylabel(r"$\rho_i$", fontsize = 20)
+		return
+
+
+class Horizon(CreateSinglePlot):
+	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, legend_dict={}, extra_dict={}):
+
+		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals, limits_dict, label_dict, legend_dict, extra_dict)
+
+
+
+	def make_plot(self):
+		#sets levels of main contour plot
+		colors1 = ['blue', 'green', 'red','purple', 'orange', 'gold','magenta']
+
+		contour_val = SNR_CUT
+
+		if ('extra', 'snr', 'contour', 'value') in self.extra_dict.keys():
+			contour_val = float(self.extra_dict[('extra', 'snr', 'contour', 'value')])
+		
+		for j in range(len(self.zvals)):
+			hz = self.axis.contour(self.xvals[j],self.yvals[j],self.zvals[j], np.array([contour_val]), colors = colors1[j], linewidths = 1., linestyles= 'solid')
+
+			
+			v = np.transpose(hz.collections[0].get_paths()[0].vertices)
+
+			#plot invisible lines for purpose of creating a legend
+			if ('legend', 'labels') in self.legend_dict.keys():
+				self.axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j], label = self.legend_dict[('legend', 'labels')][j].replace('*', ' '))
+
+			else:
+				self.axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j])
+			
+		
+		if ('legend', 'labels') in self.legend_dict.keys():
+			#defaults followed by change
+			loc = 'upper left'
+			if ('legend', 'loc') in self.legend_dict.keys():
+				loc = self.legend_dict[('legend','loc')].replace('*', ' ')
+
+			size = 10
+			if ('legend','size') in self.legend_dict.keys():
+				size = int(self.legend_dict[('legend','size')])
+
+			bbox_to_anchor = None
+			if ('legend', 'bbox', 'to', 'anchor') in self.legend_dict.keys():
+				bbox_to_anchor = tuple(float(i) for i in self.legend_dict[('legend', 'bbox', 'to', 'anchor')])
+
+			ncol = 1
+			if ('legend','ncol') in self.legend_dict.keys():
+				ncol = int(self.legend_dict[('legend','ncol')])	
+
+			self.axis.legend(loc=loc, bbox_to_anchor=bbox_to_anchor, ncol=ncol, prop={'size':size})
+
+
+		return
+
 
 
 
@@ -418,31 +439,15 @@ def read_in_data(control_dict, pid):
 		value_classes.append(PlotVals(x[k],y[k],z[k]))
 
 	return value_classes
-"""
-def change_axis_settings(ax, control_dict):
-	for axis_string in control_dict:
-		for key in control_dict[axis_string].keys():
-			if key[0] != 'axis':
-				continue
 
-			if 'xlabel' in key:
-				fontsize = 16
-				if 'fontsize' in key:
-					fontsize = float(control_dict[axis_string][('axis', 'xlabel', 'fontsize')])
-				ax[int(axis_string)].set_xlabel(r'%s'%control_dict[axis_string][('axis', 'xlabel')].replace('*',' '), fontsize = fontsize)
 
-			if 'ylabel' in key:
-				fontsize = 16
-				if 'fontsize' in key:
-					fontsize = float(control_dict[axis_string][('axis', 'ylabel', 'fontsize')])
-				ax[int(axis_string)].set_ylabel(r'%s'%control_dict[axis_string][('axis', 'ylabel')].replace('*',' '), fontsize = fontsize)
-"""
-
-def make_plot(pid):
+def plot_main(pid):
 
 	global WORKING_DIRECTORY
 
 	WORKING_DIRECTORY = pid['WORKING_DIRECTORY'][0]
+
+	plot_class_dict = {'horizon':Horizon, 'waterfall':Waterfall, 'ratio':Ratio}
 
 	#set up figure environment
 	t_or_f_dict = {'True':True, 'False':False}
@@ -498,12 +503,13 @@ def make_plot(pid):
 			if pid['gen_spacing'][0] == 'wide':
 				extra_dict['gen_spacing'] = 'wide'
 
+		trans_plot_class = plot_class_dict[control_dict[str(i)]['type']](fig, axis, plot_data[i].return_x_list(),plot_data[i].return_y_list(), plot_data[i].return_z_list(), limits_dict, label_dict, legend_dict, extra_dict)
 
-		trans_plot_class = CreateSinglePlot(fig, axis, plot_data[i].return_x_list(),plot_data[i].return_y_list(), plot_data[i].return_z_list(), limits_dict, label_dict, legend_dict, extra_dict)
 
-		getattr(trans_plot_class, control_dict[str(i)]['type'])()
-
+		trans_plot_class.make_plot()
 		trans_plot_class.setup_plot()
+
+		print(i)
 
 	fig.subplots_adjust(left=0.12, top=0.92, bottom=0.1)
 
@@ -560,6 +566,6 @@ if __name__ == '__main__':
 		if ':' in line:
 			plot_info_dict[line.split()[0][0:-1]] = line.split()[1::]
 
-	make_plot(plot_info_dict)
+	plot_main(plot_info_dict)
 
 
