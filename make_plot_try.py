@@ -38,14 +38,14 @@ class PlotVals:
 
 
 class CreateSinglePlot:
-	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, legend_dict={}, extra_dict={}):
+	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, extra_dict={}, legend_dict={}):
 		self.fig = fig
 		self.axis = axis
 		self.xvals = xvals
 		self.yvals = yvals
 		self.zvals = zvals
 
-		self.limits_dict, self.label_dict, self.legend_dict, self.extra_dict = limits_dict, label_dict, legend_dict, extra_dict
+		self.limits_dict, self.label_dict, self.extra_dict, self.legend_dict = limits_dict, label_dict, extra_dict, legend_dict
 
 	def setup_plot(self):
 
@@ -115,9 +115,9 @@ class CreateSinglePlot:
 
 
 class Ratio(CreateSinglePlot):
-	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, legend_dict={}, extra_dict={}):
+	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, extra_dict={}, legend_dict={}):
 
-		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals, limits_dict, label_dict, legend_dict, extra_dict)
+		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals, limits_dict, label_dict, extra_dict, legend_dict)
 
 
 
@@ -209,9 +209,9 @@ class Ratio(CreateSinglePlot):
 
 
 class Waterfall(CreateSinglePlot):
-	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, legend_dict={}, extra_dict={}):
+	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, extra_dict={}, legend_dict={}):
 
-		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals, limits_dict, label_dict, legend_dict, extra_dict)
+		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals, limits_dict, label_dict, extra_dict, legend_dict)
 
 	def make_plot(self):
 		#sets levels of main contour plot
@@ -232,11 +232,9 @@ class Waterfall(CreateSinglePlot):
 
 
 class Horizon(CreateSinglePlot):
-	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, legend_dict={}, extra_dict={}):
+	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, extra_dict={}, legend_dict={}):
 
-		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals, limits_dict, label_dict, legend_dict, extra_dict)
-
-
+		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals, limits_dict, label_dict, extra_dict, legend_dict)
 
 	def make_plot(self):
 		#sets levels of main contour plot
@@ -503,7 +501,7 @@ def plot_main(pid):
 			if pid['gen_spacing'][0] == 'wide':
 				extra_dict['gen_spacing'] = 'wide'
 
-		trans_plot_class = plot_class_dict[control_dict[str(i)]['type']](fig, axis, plot_data[i].return_x_list(),plot_data[i].return_y_list(), plot_data[i].return_z_list(), limits_dict, label_dict, legend_dict, extra_dict)
+		trans_plot_class = plot_class_dict[control_dict[str(i)]['type']](fig, axis, plot_data[i].return_x_list(),plot_data[i].return_y_list(), plot_data[i].return_z_list(), limits_dict, label_dict, extra_dict, legend_dict)
 
 
 		trans_plot_class.make_plot()
