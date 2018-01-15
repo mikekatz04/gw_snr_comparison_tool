@@ -266,38 +266,38 @@ class file_read_out:
 				dset = data.create_dataset(key, data = self.output_dict[key], dtype = 'float64', chunks = True, compression = 'gzip', compression_opts = 9)
 
 	def txt_read_out(self):
-		header = 'Generated SNR Out\n'
-		header += 'Generator by: Michael Katz\n'
-		header += 'Date/Time: %s\n'%str(datetime.datetime.now())
+		header = '#Generated SNR Out\n'
+		header += '#Generator by: Michael Katz\n'
+		header += '#Date/Time: %s\n'%str(datetime.datetime.now())
 
-		header += 'xval_name: %s\n'%self.xval_name
-		header += 'num_x_pts: %i\n'%self.num_x
-		header += 'xval_unit: %s\n'%self.units_dict['xval_unit']
+		header += '#xval_name: %s\n'%self.xval_name
+		header += '#num_x_pts: %i\n'%self.num_x
+		header += '#xval_unit: %s\n'%self.units_dict['xval_unit']
 
-		header += 'yval_name: %s\n'%self.yval_name
-		header += 'num_y_pts: %i\n'%self.num_y
-		header += 'yval_unit: %s\n'%self.units_dict['yval_unit']
+		header += '#yval_name: %s\n'%self.yval_name
+		header += '#num_y_pts: %i\n'%self.num_y
+		header += '#yval_unit: %s\n'%self.units_dict['yval_unit']
 
-		header += 'par_1_name: %s\n'%self.par_1_name
-		header += 'par_1_unit: %s\n'%self.units_dict['par_1_unit']
-		header += 'par_2_name: %s\n'%self.par_2_name
-		header += 'par_2_unit: %s\n'%self.units_dict['par_2_unit']
-		header += 'par_3_name: %s\n'%self.par_3_name
-		header += 'par_3_unit: %s\n'%self.units_dict['par_3_unit']
+		header += '#par_1_name: %s\n'%self.par_1_name
+		header += '#par_1_unit: %s\n'%self.units_dict['par_1_unit']
+		header += '#par_2_name: %s\n'%self.par_2_name
+		header += '#par_2_unit: %s\n'%self.units_dict['par_2_unit']
+		header += '#par_3_name: %s\n'%self.par_3_name
+		header += '#par_3_unit: %s\n'%self.units_dict['par_3_unit']
 
 		if self.added_note != '':
-			header+= 'Added note: ' + self.added_note + '\n'
+			header+= '#Added note: ' + self.added_note + '\n'
 		else:
-			header+= 'Added note: None\n'
+			header+= '#Added note: None\n'
 
-		header += '--------------------\n'
+		header += '#--------------------\n'
 
 		for key in self.output_dict.keys():
 			header += key + '\t'
 
 		data_out = np.asarray([self.output_dict[key] for key in self.output_dict.keys()]).T
 
-		np.savetxt(WORKING_DIRECTORY + '/' + self.output_string + '.' + self.file_type, data_out, delimiter = '\t',header = header)
+		np.savetxt(WORKING_DIRECTORY + '/' + self.output_string + '.' + self.file_type, data_out, delimiter = '\t',header = header, comments='')
 		return
 
 def generate_contour_data(pid):
