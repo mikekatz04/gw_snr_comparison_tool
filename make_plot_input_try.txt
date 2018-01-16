@@ -20,7 +20,7 @@ figure_width: 13.0
 figure_height: 7.0
 
 num_rows: 1
-num_cols: 1
+num_cols: 2
 
 sharex: False
 sharey: False
@@ -47,7 +47,7 @@ plot_1_file_names: Sense_output/HBW_q5_s65_D.txt
 plot_1_file_labels: Classic_LISA_all
 plot_1_type: ratio
 plot_1_control_file: Sense_output/HBW_q5_sn65_D.txt.txt
-plot_1_control_label: LISA_prop_curve_all
+plot_1_control_file_label: LISA_prop_curve_all
 plot_1_label_title: Classic*LISA*vs.*Proposed*LISA
 plot_1_label_title_fontsize: 18
 plot_1_label_xlabel: test2*label

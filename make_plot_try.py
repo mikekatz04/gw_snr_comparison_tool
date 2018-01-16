@@ -288,7 +288,7 @@ class Horizon(CreateSinglePlot):
 
 def compile_plot_information(ax, pid):
 	control_dict = OrderedDict()
-	keys_for_scalar_entry = ['type', ('control', 'file'), ('control', 'label'), ('control', 'index'), ('legend','loc'), ('legend','size'), ('legend','ncol'), ('label','xlabel'), ('label', 'title'), ('label', 'ylabel'), ('label', 'title', 'fontsize'), ('label', 'xlabel', 'fontsize'), ('label', 'ylabel', 'fontsize'), ('limits','dx'), ('limits','dy'), ('limits', 'yscale'), ('extra','snr','contour','value'), ('x','data','column','label'), ('y','data','column','label')]
+	keys_for_scalar_entry = ['type', ('control', 'file'), ('control','file', 'label'), ('control', 'index'), ('legend','loc'), ('legend','size'), ('legend','ncol'), ('label','xlabel'), ('label', 'title'), ('label', 'ylabel'), ('label', 'title', 'fontsize'), ('label', 'xlabel', 'fontsize'), ('label', 'ylabel', 'fontsize'), ('limits','dx'), ('limits','dy'), ('limits', 'yscale'), ('extra','snr','contour','value'), ('x','data','column','label'), ('y','data','column','label')]
 
 	for i in range(len(ax)):
 		control_dict[str(i)] = {}
@@ -319,6 +319,25 @@ def compile_plot_information(ax, pid):
 
 	return control_dict
 
+class ReadInData:
+	def __init__(self, file_name, x_col_name, y_col_name, z_col_name):
+		self.file_name, self.x_col_name, self.y_col_name, self.z_col_name = file_name, x_col_name, y_col_name, z_col_name
+
+		self.file_type = self.file_name.split('.')[-1]	
+
+	def txt_read_in(self):
+		data = ascii.read(WORKING_DIRECTORY + '/' + self.file_name)
+
+		num_x_pts = len(np.unique(data[self.x_col_name]))
+		num_y_pts = len(np.unique(data[self.y_col_name]))
+
+		self.xvals = np.reshape(data[self.x_col_name], (num_y_pts,num_x_pts))
+		self.yvals = np.reshape(data[self.y_col_name], (num_y_pts,num_x_pts))
+		self.zvals = np.reshape(data[self.z_col_name], (num_y_pts,num_x_pts))
+
+		return
+
+
 def read_in_data(control_dict, pid):
 	x = [[]for i in np.arange(len(control_dict.keys()))]
 	y = [[] for i in np.arange(len(control_dict.keys()))]
@@ -327,8 +346,6 @@ def read_in_data(control_dict, pid):
 	for k, axis_string in enumerate(control_dict.keys()):
 
 		for j, f1 in enumerate(control_dict[axis_string][('file', 'names')]):
-	
-			data = ascii.read(WORKING_DIRECTORY + '/' + f1)
 
 			x_col_name = 'x'
 			if ('x','data','column','label') in control_dict.keys():
@@ -343,68 +360,65 @@ def read_in_data(control_dict, pid):
 			elif 'y_general_column_label' in pid.keys():
 				y_col_name = pid['y_general_column_label'][0]
 
-			num_x_pts = len(np.unique(data[x_col_name]))
-			num_y_pts = len(np.unique(data[y_col_name]))
+			data_class = ReadInData(f1, x_col_name, y_col_name, control_dict[axis_string][('file', 'labels')][j])
 
-			x[k].append(np.log10(np.reshape(data[x_col_name], (num_y_pts,num_x_pts))))
+			getattr(data_class, data_class.file_type + '_read_in')()	
+
+			
+
+			x[k].append(np.log10(data_class.xvals))
 
 			if ('limits', 'yscale') in control_dict[axis_string].keys():
 				if control_dict[axis_string][('limits', 'yscale')] == 'lin':
-					y[k].append(np.reshape(data[y_col_name], (num_z_pts,num_M_pts)))
+					y[k].append(data_class.yvals)
 				else:
-					y[k].append(np.log10(np.reshape(data[y_col_name], (num_y_pts,num_x_pts))))
+					y[k].append(np.log10(data_class.yvals))
 
 			else:
 				if pid['gen_yscale'][0] == 'lin':
-					y[k].append(np.reshape(data[y_col_name], (num_y_pts,num_x_pts)))
+					y[k].append(data_class.yvals)
 				else:
-					y[k].append(np.log10(np.reshape(data[y_col_name], (num_y_pts,num_x_pts))))
+					y[k].append(np.log10(data_class.yvals))
 
-			z[k].append(np.reshape(data[control_dict[axis_string][('file', 'labels')][j]], (num_y_pts,num_x_pts)))
+			z[k].append(data_class.zvals)
 
 	for k, axis_string in enumerate(control_dict.keys()):
 		if ('control', 'file') in control_dict[axis_string]:
 
-			data = np.genfromtxt(WORKING_DIRECTORY + '/' + control_dict[axis_string][('control', 'file')], names=True, skip_header=2)
 
-			f = open(WORKING_DIRECTORY + '/' + control_dict[axis_string][('control', 'file')], 'r')
+			#add 'control' !!!!!!!!!! to tuple key
+			x_col_name = 'x'
+			if ('control', 'x','data','column','label') in control_dict.keys():
+				x_col_name = control_dict[('control', 'x','data','column','label')]
+			elif 'x_general_column_label' in pid.keys():
+				x_col_name = pid['x_general_column_label'][0]
 
-			#find dimensions of data
-			line = f.readline()
-			line = line.replace('\n','')
-			i=0
-			while line[i] != '=':
-				i+= 1
-			i += 1
-			#set Mass points
-			num_M_pts = int(line[i::])
+			y_col_name = 'y'
+			if ('control', 'y','data','column','label') in control_dict.keys():
+				y_col_name = control_dict[('y','data','column','label')]
 
+			elif 'y_general_column_label' in pid.keys():
+				y_col_name = pid['y_general_column_label'][0]
 
-			line = f.readline()
-			line = line.replace('\n','')
-			i=0
-			while line[i] != '=':
-				i+= 1
-			i += 1
-			#set redshift points
-			num_z_pts = int(line[i::])
+			data_class = ReadInData(f1, x_col_name, y_col_name, control_dict[axis_string][('control','file', 'label')])
 
-			x[k].append(np.log10(np.reshape(data[x_col_name], (num_y_pts,num_x_pts))))
+			getattr(data_class, data_class.file_type + '_read_in')()	
+
+			x[k].append(np.log10(data_class.xvals))
 
 			if ('limits', 'yscale') in control_dict[axis_string].keys():
 				if control_dict[axis_string][('limits', 'yscale')] == 'lin':
-					y[k].append(np.reshape(data[y_col_name], (num_y_pts,num_x_pts)))
+					y[k].append(data_class.yvals)
 				else:
-					y[k].append(np.log10(np.reshape(data[y_col_name], (num_y_pts,num_x_pts))))
+					y[k].append(np.log10(data_class.yvals))
 
 			else:
 				if pid['gen_yscale'][0] == 'lin':
-					y[k].append(np.reshape(data[y_col_name], (num_y_pts,num_x_pts)))
+					y[k].append(data_class.yvals)
 				else:
-					y[k].append(np.log10(np.reshape(data[y_col_name], (num_y_pts,num_x_pts))))
+					y[k].append(np.log10(data_class.yvals))
 
-
-			z[k].append(np.reshape(data[control_dict[axis_string][('control', 'label')]], (num_y_pts,num_x_pts)))
+			z[k].append(data_class.zvals)
 
 		if ('control', 'index') in control_dict[axis_string]:
 			index = int(control_dict[axis_string][('control', 'index')])
