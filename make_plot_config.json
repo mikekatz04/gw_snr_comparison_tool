@@ -1,0 +1,128 @@
+{
+"WORKING_DIRECTORY": ".",
+
+"SNR_CUT": 5.0,
+
+"show_figure": true,
+
+"save_figure": true,
+"output_path": "test_new.pdf",
+
+"x_general_column_label": "M_s",
+"y_general_column_label": "z", 
+
+"figure_width": 13.0,
+"figure_height": 7.0,
+
+"num_rows": 1,
+"num_cols": 2,
+
+"sharex": false,
+"sharey": false,
+
+"gen_spacing": "tight",
+
+"gen_xlims": [2.0, 10.0],
+"gen_dx": 1.0,
+
+"gen_ylims": [0.0, 20.0],
+"gen_dy": 4.0,
+"gen_yscale": "lin",
+
+"fig_y_label": "Redshift",
+"fig_x_label": "Total Mass (M_solar)",
+
+"0":	{
+			"file_names": ["Sense_output/HBW_q5_s65_D.txt"],
+			"file_labels": ["LISA_prop_curve_all"],
+			"type": "waterfall"
+		},
+
+"1":{
+	"file_names": ["Sense_output/HBW_q5_s65_D.txt"],
+	"file_labels": ["Classic_LISA_all"],
+	"type": "ratio",
+
+	"control":
+		{
+		"file":"Sense_output/HBW_q5_sn65_D.txt.txt",
+		"label":"LISA_prop_curve_all"
+		},
+
+	"label_dict":
+		{
+		"title": "Classic LISA vs. Proposed LISA",
+		"title_fontsize": 18, 
+		"xlabel": "test2 label",
+		"ylabel": "testy label"
+		},
+
+	"limits_dict":
+		{
+		"xlims": [2.0,5.0],
+		"dx": 1.0
+		}
+	},
+
+"2":{
+	"file_names": "Sense_output/HBW_q5_s65_D.txt",
+	"file_labels": "LISA_prop_curve_early_break_all_WD",
+	"type": "ratio",
+
+	"control":
+		{
+		"file":"Sense_output/HBW_q5_s65_D.txt",
+		"label":"LISA_prop_curve_all"
+		},
+
+	"label_dict":
+		{
+		"title": "Classic LISA vs. Proposed LISA",
+		"title_fontsize": 18, 
+		"xlabel": "test2 label",
+		"ylabel": "testy label"
+		},
+
+	"limits_dict":
+		{
+		"xlims": [2.0,5.0],
+		"dx": 1.0
+		}
+	},
+
+"3":{
+	"file_names": ["Sense_output/HBW_q5_s65_D.txt","Sense_output/HBW_q5_s99_D.txt"],
+	"file_labels": ["LISA_prop_curve_early_break_all", "Classic_LISA_all"],
+	"indices": [0,1,2],
+	"type": "ratio",
+
+	"legend_dict":
+		{
+		"labels": ["Curve 1", "Curve 2", "Curve 3", "Curve 4", "Curve 5"],
+		"loc": "lower left",
+		"size":13,
+		"bbox_to_anchor": [0.0, 0.3, 0.1, 0.5],
+		"ncol": 2
+		},
+
+	"label_dict":
+		{
+		"title": "Classic LISA vs. Proposed LISA",
+		"title_fontsize": 18, 
+		"xlabel": "test2 label",
+		"ylabel": "testy label"
+		},
+
+	"limits_dict":
+		{
+		"xlims": [2.0,5.0],
+		"dx": 1.0
+		},
+
+	"extra_dict":
+		{
+		"snr_contour_value": 1000.0
+		}
+	}
+
+}
