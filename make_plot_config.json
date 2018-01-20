@@ -1,36 +1,39 @@
 {
-"WORKING_DIRECTORY": ".",
+"general":{
+	"WORKING_DIRECTORY": ".",
 
-"SNR_CUT": 5.0,
+	"SNR_CUT": 5.0,
 
-"show_figure": true,
+	"show_figure": true,
 
-"save_figure": true,
-"output_path": "test_new.pdf",
+	"save_figure": true,
+	"output_path": "test_new.pdf",
 
-"x_general_column_label": "M_s",
-"y_general_column_label": "z", 
+	"x_general_column_label": "M_s",
+	"y_general_column_label": "z", 
 
-"figure_width": 13.0,
-"figure_height": 7.0,
+	"figure_width": 13.0,
+	"figure_height": 7.0,
 
-"num_rows": 1,
-"num_cols": 2,
+	"num_rows": 1,
+	"num_cols": 2,
 
-"sharex": false,
-"sharey": false,
+	"sharex": false,
+	"sharey": false,
+	"gen_spacing": "tight",
 
-"gen_spacing": "tight",
+	"gen_xlims": [2.0, 10.0],
+	"gen_dx": 1.0,
 
-"gen_xlims": [2.0, 10.0],
-"gen_dx": 1.0,
+	"gen_ylims": [0.0, 20.0],
+	"gen_dy": 4.0,
+	"gen_yscale": "lin",
 
-"gen_ylims": [0.0, 20.0],
-"gen_dy": 4.0,
-"gen_yscale": "lin",
+	"fig_y_label": "Redshift",
+	"fig_x_label": "Total Mass (M_solar)"
+	},
 
-"fig_y_label": "Redshift",
-"fig_x_label": "Total Mass (M_solar)",
+
 
 "plot_info":
 	{

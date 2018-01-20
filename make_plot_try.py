@@ -319,15 +319,15 @@ def read_in_data(pid):
 			x_col_name = 'x'
 			if 'x_data_column_label' in file_dict.keys():
 				x_col_name = file_dict['x_data_column_label']
-			elif 'x_general_column_label' in pid.keys():
-				x_col_name = pid['x_general_column_label']
+			elif 'x_general_column_label' in pid['general'].keys():
+				x_col_name = pid['general']['x_general_column_label']
 
 			y_col_name = 'y'
 			if 'y_data_column_label' in file_dict.keys():
 				y_col_name = file_dict['y_data_column_label']
 
-			elif 'y_general_column_label' in pid.keys():
-				y_col_name = pid['y_general_column_label']
+			elif 'y_general_column_label' in pid['general'].keys():
+				y_col_name = pid['general']['y_general_column_label']
 
 			data_class = ReadInData(file_dict['name'], x_col_name, y_col_name, file_dict['label'])
 
@@ -345,8 +345,8 @@ def read_in_data(pid):
 						y_append_value = np.log10(data_class.yvals)
 
 			else:
-				if 'gen_yscale' in pid.keys():
-					if pid['gen_yscale'] == 'log':
+				if 'gen_yscale' in pid['general'].keys():
+					if pid['general']['gen_yscale'] == 'log':
 						y_append_value = np.log10(data_class.yvals)
 
 			y[k].append(data_class.yvals)
@@ -361,15 +361,15 @@ def read_in_data(pid):
 				x_col_name = 'x'
 				if 'x_data_column_label' in file_dict.keys():
 					x_col_name = file_dict['x_data_column_label']
-				elif 'x_general_column_label' in pid.keys():
-					x_col_name = pid['x_general_column_label']
+				elif 'x_general_column_label' in pid['general'].keys():
+					x_col_name = pid['general']['x_general_column_label']
 
 				y_col_name = 'y'
 				if 'y_data_column_label' in file_dict.keys():
 					y_col_name = file_dict['y_data_column_label']
 
-				elif 'y_general_column_label' in pid.keys():
-					y_col_name = pid['y_general_column_label']
+				elif 'y_general_column_label' in pid['general'].keys():
+					y_col_name = pid['general']['y_general_column_label']
 
 				data_class = ReadInData(file_dict['name'], x_col_name, y_col_name, file_dict['label'])
 
@@ -385,8 +385,8 @@ def read_in_data(pid):
 							y_append_value = np.log10(data_class.yvals)
 
 				else:
-					if 'gen_yscale' in pid.keys():
-						if pid['gen_yscale'] == 'log':
+					if 'gen_yscale' in pid['general'].keys():
+						if pid['general']['gen_yscale'] == 'log':
 							y_append_value = np.log10(data_class.yvals)
 
 				y[k].append(data_class.yvals)
@@ -426,9 +426,9 @@ def plot_main(pid):
 
 	global WORKING_DIRECTORY, SNR_CUT
 
-	WORKING_DIRECTORY = pid['WORKING_DIRECTORY']
+	WORKING_DIRECTORY = pid['general']['WORKING_DIRECTORY']
 
-	SNR_CUT = pid['SNR_CUT']
+	SNR_CUT = pid['general']['SNR_CUT']
 
 	plot_class_dict = {'horizon':Horizon, 'waterfall':Waterfall, 'ratio':Ratio}
 
@@ -437,16 +437,25 @@ def plot_main(pid):
 	sharey = True
 
 	#if share axes options are in input, change to option
-	if 'sharex' in pid.keys():
-		sharex = pid['sharex']
+	if 'sharex' in pid['general'].keys():
+		sharex = pid['general']['sharex']
 
-	if 'sharey' in pid.keys():
-		sharey = pid['sharey']
+	if 'sharey' in pid['general'].keys():
+		sharey = pid['general']['sharey']
 
 	#declare figure and axes environments
-	fig, ax = plt.subplots(nrows = int(pid['num_rows']), ncols = int(pid['num_cols']), sharex = sharex, sharey = sharey)
+	fig, ax = plt.subplots(nrows = int(pid['general']['num_rows']), ncols = int(pid['general']['num_cols']), sharex = sharex, sharey = sharey)
 
-	fig.set_size_inches(float(pid['figure_width']),float(pid['figure_height']))
+	#set figure size
+	figure_width = 8
+	if 'figure_width' in pid['general'].keys():
+		figure_width = pid['general']['figure_width']
+
+	figure_height = 8
+	if 'figure_height' in pid['general'].keys():
+		figure_height = pid['general']['figure_height']
+
+	fig.set_size_inches(figure_width,figure_height)
 
 	try:
 		ax = ax.ravel()
@@ -460,21 +469,21 @@ def plot_main(pid):
 		for name in ['legend', 'limits', 'label', 'extra']:
 			if name not in trans_dict:
 				trans_dict[name] = {}
-		if 'gen_xlims' in pid.keys():
-			trans_dict['limits']['xlims'] = pid['gen_xlims']
-		if 'gen_dx' in pid.keys():
-			trans_dict['limits']['dx'] = float(pid['gen_dx'])
+		if 'gen_xlims' in pid['general'].keys():
+			trans_dict['limits']['xlims'] = pid['general']['gen_xlims']
+		if 'gen_dx' in pid['general'].keys():
+			trans_dict['limits']['dx'] = float(pid['general']['gen_dx'])
 
-		if 'gen_ylims' in pid.keys():
-			trans_dict['limits']['ylims'] = pid['gen_ylims']
-		if 'gen_dy' in pid.keys():
-			trans_dict['limits']['dy'] = float(pid['gen_dy'])
-		if 'gen_yscale' in pid.keys():
-			trans_dict['limits']['yscale'] = pid['gen_yscale']
+		if 'gen_ylims' in pid['general'].keys():
+			trans_dict['limits']['ylims'] = pid['general']['gen_ylims']
+		if 'gen_dy' in pid['general'].keys():
+			trans_dict['limits']['dy'] = float(pid['general']['gen_dy'])
+		if 'gen_yscale' in pid['general'].keys():
+			trans_dict['limits']['yscale'] = pid['general']['gen_yscale']
 
 		trans_dict['extra']['gen_spacing'] = 'tight'
-		if 'gen_spacing' in pid.keys():
-			if pid['gen_spacing'] == 'wide':
+		if 'gen_spacing' in pid['general'].keys():
+			if pid['general']['gen_spacing'] == 'wide':
 				extra_dict['gen_spacing'] = 'wide'
 
 		trans_plot_class = plot_class_dict[trans_dict['type']](fig, axis, plot_data[i].return_x_list(),plot_data[i].return_y_list(), plot_data[i].return_z_list(), trans_dict['limits'], trans_dict['label'], trans_dict['extra'], trans_dict['legend'])
@@ -487,8 +496,8 @@ def plot_main(pid):
 
 	fig.subplots_adjust(left=0.12, top=0.92, bottom=0.1)
 
-	if 'gen_spacing' in pid.keys():
-		if pid['gen_spacing'][0] == 'wide':
+	if 'gen_spacing' in pid['general'].keys():
+		if pid['general']['gen_spacing'][0] == 'wide':
 			pass
 
 		else:
@@ -498,32 +507,27 @@ def plot_main(pid):
 		fig.subplots_adjust(wspace=0.0, hspace=0.0)
 
 
-	adjusted = False
+	plot_types = [pid['plot_info'][axis_string]['type'] for axis_string in pid['plot_info'].keys()]
 
-	for axis_string in pid['plot_info'].keys():
-		if adjusted == True:
-			continue
-		else:
-			if pid['plot_info'][axis_string]['type'] == 'ratio' or pid['plot_info'][axis_string]['type'] == 'waterfall':
-				fig.subplots_adjust(right=0.79)
-				adjusted = True
+	if 'ratio' in plot_types or 'waterfall' in plot_types:
+		fig.subplots_adjust(right=0.79)
 
 	#label for axis
 	fig_label_fontsize = 20
-	if 'fig_label_fontsize' in pid.keys():
-		fig_label_fontsize = float(pid['fig_label_fontsize'])
+	if 'fig_label_fontsize' in pid['general'].keys():
+		fig_label_fontsize = float(pid['general']['fig_label_fontsize'])
 
-	fig.text(0.01, 0.51, r'%s'%(pid['fig_y_label']), rotation = 'vertical', va = 'center', fontsize = fig_label_fontsize)
+	fig.text(0.01, 0.51, r'%s'%(pid['general']['fig_y_label']), rotation = 'vertical', va = 'center', fontsize = fig_label_fontsize)
 
-	fig.text(0.45, 0.02, r'%s'%(pid['fig_x_label']), ha = 'center', fontsize = fig_label_fontsize)
+	fig.text(0.45, 0.02, r'%s'%(pid['general']['fig_x_label']), ha = 'center', fontsize = fig_label_fontsize)
 		
 
-	if 'save_figure' in pid.keys():
-		if pid['save_figure'] == True:
-			plt.savefig(WORKING_DIRECTORY + '/' + pid['output_path'], dpi=200)
+	if 'save_figure' in pid['general'].keys():
+		if pid['general']['save_figure'] == True:
+			plt.savefig(WORKING_DIRECTORY + '/' + pid['general']['output_path'], dpi=200)
 	
-	if 'show_figure' in pid.keys():
-		if pid['show_figure'] == True:
+	if 'show_figure' in pid['general'].keys():
+		if pid['general']['show_figure'] == True:
 			plt.show()
 
 	return
