@@ -32,97 +32,86 @@
 "fig_y_label": "Redshift",
 "fig_x_label": "Total Mass (M_solar)",
 
-"0":	{
-			"file_names": ["Sense_output/HBW_q5_s65_D.txt"],
-			"file_labels": ["LISA_prop_curve_all"],
-			"type": "waterfall"
+"plot_info":
+	{
+
+	"0":{
+		"file":[
+			{"name":"Sense_output/HBW_q5_s65_D.txt","label":"LISA_prop_curve_all"}
+			],
+		"type": "waterfall"
 		},
 
-"1":{
-	"file_names": ["Sense_output/HBW_q5_s65_D.txt"],
-	"file_labels": ["Classic_LISA_all"],
-	"type": "ratio",
+	"1":{
+		"file":[
+			{"name":"Sense_output/HBW_q5_s65_D.txt","label": "Classic_LISA_all"}
+			],
+		"type": "ratio",
 
-	"control":
-		{
-		"file":"Sense_output/HBW_q5_sn65_D.txt.txt",
-		"label":"LISA_prop_curve_all"
+		"control":
+			{"name":"Sense_output/HBW_q5_sn65_D.txt.txt","label":"LISA_prop_curve_all"},
+
+		"label":
+			{"title": "Classic LISA vs. Proposed LISA", "title_fontsize": 18,  "xlabel": "test2 label", "ylabel": "testy label"},
+
+		"limits":
+			{"xlims": [2.0,5.0],"dx": 1.0}
 		},
 
-	"label_dict":
-		{
-		"title": "Classic LISA vs. Proposed LISA",
-		"title_fontsize": 18, 
-		"xlabel": "test2 label",
-		"ylabel": "testy label"
+	"2":{
+		"file":[
+			{"name":"Sense_output/HBW_q5_s65_D.txt","label":"LISA_prop_curve_all"}
+			],
+		"type": "ratio",
+
+		"control":
+			{"name":"Sense_output/HBW_q5_s65_D.txt","label":"LISA_prop_curve_all"},
+
+		"label":
+			{"title": "Classic LISA vs. Proposed LISA","title_fontsize": 18, "xlabel": "test2 label", "ylabel": "testy label"},
+
+		"limits":
+			{
+			"xlims": [2.0,5.0],
+			"dx": 1.0
+			}
 		},
 
-	"limits_dict":
-		{
-		"xlims": [2.0,5.0],
-		"dx": 1.0
-		}
-	},
+	"3":{
+		"file":[
+			{"name":"Sense_output/HBW_q5_s65_D.txt","label":"LISA_prop_curve_early_break_all"},
+			{"name":"Sense_output/HBW_q5_s99_D.txt", "label":"Classic_LISA_all", "x_data_column_label":"x", "y_data_column_label":"y"} 
+			],
+		"indices": [0,1,2],
+		"type": "horizon",
 
-"2":{
-	"file_names": "Sense_output/HBW_q5_s65_D.txt",
-	"file_labels": "LISA_prop_curve_early_break_all_WD",
-	"type": "ratio",
+		"legend":
+			{
+			"labels": ["Curve 1", "Curve 2", "Curve 3", "Curve 4", "Curve 5"],
+			"loc": "lower left",
+			"size":13,
+			"bbox_to_anchor": [0.0, 0.3, 0.1, 0.5],
+			"ncol": 2
+			},
 
-	"control":
-		{
-		"file":"Sense_output/HBW_q5_s65_D.txt",
-		"label":"LISA_prop_curve_all"
-		},
+		"label":
+			{
+			"title": "Classic LISA vs. Proposed LISA",
+			"title_fontsize": 18, 
+			"xlabel": "test2 label",
+			"ylabel": "testy label"
+			},
 
-	"label_dict":
-		{
-		"title": "Classic LISA vs. Proposed LISA",
-		"title_fontsize": 18, 
-		"xlabel": "test2 label",
-		"ylabel": "testy label"
-		},
+		"limits":
+			{
+			"xlims": [2.0,5.0],
+			"dx": 1.0
+			},
 
-	"limits_dict":
-		{
-		"xlims": [2.0,5.0],
-		"dx": 1.0
-		}
-	},
-
-"3":{
-	"file_names": ["Sense_output/HBW_q5_s65_D.txt","Sense_output/HBW_q5_s99_D.txt"],
-	"file_labels": ["LISA_prop_curve_early_break_all", "Classic_LISA_all"],
-	"indices": [0,1,2],
-	"type": "ratio",
-
-	"legend_dict":
-		{
-		"labels": ["Curve 1", "Curve 2", "Curve 3", "Curve 4", "Curve 5"],
-		"loc": "lower left",
-		"size":13,
-		"bbox_to_anchor": [0.0, 0.3, 0.1, 0.5],
-		"ncol": 2
-		},
-
-	"label_dict":
-		{
-		"title": "Classic LISA vs. Proposed LISA",
-		"title_fontsize": 18, 
-		"xlabel": "test2 label",
-		"ylabel": "testy label"
-		},
-
-	"limits_dict":
-		{
-		"xlims": [2.0,5.0],
-		"dx": 1.0
-		},
-
-	"extra_dict":
-		{
-		"snr_contour_value": 1000.0
+		"extra":
+			{
+			"snr_contour_value": 1000.0
+			}
 		}
 	}
-
 }

@@ -1,4 +1,5 @@
 import numpy as np
+import json
 import matplotlib.pyplot as plt
 import scipy.constants as ct
 import pdb
@@ -50,9 +51,9 @@ class CreateSinglePlot:
 
 	def setup_plot(self):
 
-		xticks = np.arange(float(self.limits_dict[('limits','xlims')][0]), float(self.limits_dict[('limits','xlims')][1]) + float(self.limits_dict[('limits','dx')]), float(self.limits_dict[('limits','dx')]))
+		xticks = np.arange(float(self.limits_dict['xlims'][0]), float(self.limits_dict['xlims'][1]) + float(self.limits_dict['dx']), float(self.limits_dict['dx']))
 
-		yticks = np.arange(float(self.limits_dict[('limits','ylims')][0]), float(self.limits_dict[('limits','ylims')][1]) + float(self.limits_dict[('limits','dy')]), float(self.limits_dict[('limits','dy')]))
+		yticks = np.arange(float(self.limits_dict['ylims'][0]), float(self.limits_dict['ylims'][1]) + float(self.limits_dict['dy']), float(self.limits_dict['dy']))
 
 		self.axis.set_xlim(xticks.min(), xticks.max())
 		self.axis.set_ylim(yticks.min(), yticks.max())
@@ -70,7 +71,7 @@ class CreateSinglePlot:
 
 		self.axis.set_xticklabels([r'$10^{%i}$'%i for i in xticks[x_inds]])
 
-		if self.limits_dict[('limits', 'yscale')] == 'log':
+		if self.limits_dict['yscale'] == 'log':
 			self.axis.set_yticklabels([r'$10^{%i}$'%int(i) for i in yticks[y_inds]])
 		else:
 			self.axis.set_yticklabels([r'$%i$'%int(i) for i in yticks[y_inds]])
@@ -78,22 +79,22 @@ class CreateSinglePlot:
 		self.axis.grid(True,linestyle='-',color='0.75')
 
 		title_fontsize = 20
-		if ('label', 'title') in self.label_dict.keys():
-			if ('label', 'title', 'fontsize') in self.label_dict.keys():
-				title_fontsize = float(self.label_dict[('label', 'title', 'fontsize')])
-			self.axis.set_title(r'%s'%self.label_dict[('label', 'title')].replace('*',' '), fontsize=title_fontsize)
+		if 'title' in self.label_dict.keys():
+			if 'title_fontsize' in self.label_dict.keys():
+				title_fontsize = float(self.label_dict['title_fontsize'])
+			self.axis.set_title(r'%s'%self.label_dict['title'], fontsize=title_fontsize)
 
 		label_fontsize = 20
-		if ('label', 'xlabel') in self.label_dict.keys():
-			if ('label', 'xlabel', 'fontsize') in self.label_dict.keys():
-				label_fontsize = float(self.label_dict[('label', 'xlabel', 'fontsize')])
-			self.axis.set_xlabel(r'%s'%self.label_dict[('label', 'xlabel')].replace('*',' '), fontsize=label_fontsize)
+		if 'xlabel' in self.label_dict.keys():
+			if 'xlabel_fontsize' in self.label_dict.keys():
+				label_fontsize = float(self.label_dict['xlabel_fontsize'])
+			self.axis.set_xlabel(r'%s'%self.label_dict['xlabel'], fontsize=label_fontsize)
 
 		label_fontsize = 20
-		if ('label', 'ylabel') in self.label_dict.keys():
-			if ('label', 'ylabel', 'fontsize') in self.label_dict.keys():
-				label_fontsize = float(self.label_dict[('label', 'ylabel', 'fontsize')])
-			self.axis.set_ylabel(r'%s'%self.label_dict[('label', 'ylabel')].replace('*',' '), fontsize=label_fontsize)
+		if 'ylabel' in self.label_dict.keys():
+			if 'ylabel_fontsize' in self.label_dict.keys():
+				label_fontsize = float(self.label_dict['ylabel_fontsize'])
+			self.axis.set_ylabel(r'%s'%self.label_dict['ylabel'], fontsize=label_fontsize)
 
 		return
 
@@ -243,8 +244,8 @@ class Horizon(CreateSinglePlot):
 
 		contour_val = SNR_CUT
 
-		if ('extra', 'snr', 'contour', 'value') in self.extra_dict.keys():
-			contour_val = float(self.extra_dict[('extra', 'snr', 'contour', 'value')])
+		if 'snr_contour_value' in self.extra_dict.keys():
+			contour_val = float(self.extra_dict['snr_contour_value'])
 		
 		for j in range(len(self.zvals)):
 			hz = self.axis.contour(self.xvals[j],self.yvals[j],self.zvals[j], np.array([contour_val]), colors = colors1[j], linewidths = 1., linestyles= 'solid')
@@ -253,30 +254,30 @@ class Horizon(CreateSinglePlot):
 			v = np.transpose(hz.collections[0].get_paths()[0].vertices)
 
 			#plot invisible lines for purpose of creating a legend
-			if ('legend', 'labels') in self.legend_dict.keys():
-				self.axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j], label = self.legend_dict[('legend', 'labels')][j].replace('*', ' '))
+			if legend_dict != {}:
+				self.axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j], label = self.legend_dict['labels'][j])
 
 			else:
 				self.axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j])
 			
 		
-		if ('legend', 'labels') in self.legend_dict.keys():
+		if legend_dict != {}:
 			#defaults followed by change
 			loc = 'upper left'
-			if ('legend', 'loc') in self.legend_dict.keys():
-				loc = self.legend_dict[('legend','loc')].replace('*', ' ')
+			if 'loc' in self.legend_dict.keys():
+				loc = self.legend_dict['loc']
 
 			size = 10
-			if ('legend','size') in self.legend_dict.keys():
-				size = int(self.legend_dict[('legend','size')])
+			if 'size' in self.legend_dict.keys():
+				size = float(self.legend_dict['size'])
 
 			bbox_to_anchor = None
-			if ('legend', 'bbox', 'to', 'anchor') in self.legend_dict.keys():
-				bbox_to_anchor = tuple(float(i) for i in self.legend_dict[('legend', 'bbox', 'to', 'anchor')])
+			if 'bbox_to_anchor' in self.legend_dict.keys():
+				bbox_to_anchor = self.legend_dict['bbox_to_anchor']
 
 			ncol = 1
-			if ('legend','ncol') in self.legend_dict.keys():
-				ncol = int(self.legend_dict[('legend','ncol')])	
+			if 'ncol' in self.legend_dict.keys():
+				ncol = int(self.legend_dict['ncol'])	
 
 			self.axis.legend(loc=loc, bbox_to_anchor=bbox_to_anchor, ncol=ncol, prop={'size':size})
 
@@ -284,40 +285,6 @@ class Horizon(CreateSinglePlot):
 		return
 
 
-
-
-def compile_plot_information(ax, pid):
-	control_dict = OrderedDict()
-	keys_for_scalar_entry = ['type', ('control', 'file'), ('control','file', 'label'), ('control', 'index'), ('legend','loc'), ('legend','size'), ('legend','ncol'), ('label','xlabel'), ('label', 'title'), ('label', 'ylabel'), ('label', 'title', 'fontsize'), ('label', 'xlabel', 'fontsize'), ('label', 'ylabel', 'fontsize'), ('limits','dx'), ('limits','dy'), ('limits', 'yscale'), ('extra','snr','contour','value'), ('x','data','column','label'), ('y','data','column','label')]
-
-	for i in range(len(ax)):
-		control_dict[str(i)] = {}
-
-	global SNR_CUT
-	#establish SNR cut
-	SNR_CUT = float(pid['SNR_CUT'][0])
-
-	for key_name in pid.keys():
-		if key_name[0:5] == 'plot_':
-
-			axis_string = key_name.split('_')[1]
-			if axis_string not in control_dict.keys():
-				continue
-			names = key_name.split('_')[2::]
-			if len(names) > 1:
-				key = tuple(name for name in names)
-
-				if key in keys_for_scalar_entry:
-					control_dict[axis_string][key] = pid[key_name][0]
-				else:
-					control_dict[axis_string][key] = pid[key_name]
-			elif key_name.split('_')[2] in keys_for_scalar_entry:
-				control_dict[axis_string][key_name.split('_')[2]] = pid[key_name][0]
-
-			else:
-				control_dict[axis_string][key_name.split('_')[2]] = pid[key_name]
-
-	return control_dict
 
 class ReadInData:
 	def __init__(self, file_name, x_col_name, y_col_name, z_col_name):
@@ -338,29 +305,31 @@ class ReadInData:
 		return
 
 
-def read_in_data(control_dict, pid):
+def read_in_data(pid):
+	control_dict = pid['plot_info']
 	x = [[]for i in np.arange(len(control_dict.keys()))]
 	y = [[] for i in np.arange(len(control_dict.keys()))]
 	z = [[] for i in np.arange(len(control_dict.keys()))]
 
 	for k, axis_string in enumerate(control_dict.keys()):
 
-		for j, f1 in enumerate(control_dict[axis_string][('file', 'names')]):
+		#set default to list of files
 
+		for j, file_dict in enumerate(control_dict[axis_string]['file']):
 			x_col_name = 'x'
-			if ('x','data','column','label') in control_dict.keys():
-				x_col_name = control_dict[('x','data','column','label')]
+			if 'x_data_column_label' in file_dict.keys():
+				x_col_name = file_dict['x_data_column_label']
 			elif 'x_general_column_label' in pid.keys():
-				x_col_name = pid['x_general_column_label'][0]
+				x_col_name = pid['x_general_column_label']
 
 			y_col_name = 'y'
-			if ('y','data','column','label') in control_dict.keys():
-				y_col_name = control_dict[('y','data','column','label')]
+			if 'y_data_column_label' in file_dict.keys():
+				y_col_name = file_dict['y_data_column_label']
 
 			elif 'y_general_column_label' in pid.keys():
-				y_col_name = pid['y_general_column_label'][0]
+				y_col_name = pid['y_general_column_label']
 
-			data_class = ReadInData(f1, x_col_name, y_col_name, control_dict[axis_string][('file', 'labels')][j])
+			data_class = ReadInData(file_dict['name'], x_col_name, y_col_name, file_dict['label'])
 
 			getattr(data_class, data_class.file_type + '_read_in')()	
 
@@ -368,67 +337,70 @@ def read_in_data(control_dict, pid):
 
 			x[k].append(np.log10(data_class.xvals))
 
-			if ('limits', 'yscale') in control_dict[axis_string].keys():
-				if control_dict[axis_string][('limits', 'yscale')] == 'lin':
-					y[k].append(data_class.yvals)
-				else:
-					y[k].append(np.log10(data_class.yvals))
+			#default is linear y scale
+			y_append_value = data_class.yvals
+			if 'limits' in control_dict[axis_string].keys():
+				if 'yscale' in control_dict[axis_string]['limits'].keys():
+					if control_dict[axis_string]['limits']['yscale'] == 'log':
+						y_append_value = np.log10(data_class.yvals)
 
 			else:
-				if pid['gen_yscale'][0] == 'lin':
-					y[k].append(data_class.yvals)
-				else:
-					y[k].append(np.log10(data_class.yvals))
+				if 'gen_yscale' in pid.keys():
+					if pid['gen_yscale'] == 'log':
+						y_append_value = np.log10(data_class.yvals)
 
+			y[k].append(data_class.yvals)
 			z[k].append(data_class.zvals)
+		print(axis_string)
 
 	for k, axis_string in enumerate(control_dict.keys()):
-		if ('control', 'file') in control_dict[axis_string]:
+		if 'control' in control_dict[axis_string]:
+			if 'name' in control_dict[axis_string]['control']:
+				file_dict = control_dict[axis_string]['control']
 
+				x_col_name = 'x'
+				if 'x_data_column_label' in file_dict.keys():
+					x_col_name = file_dict['x_data_column_label']
+				elif 'x_general_column_label' in pid.keys():
+					x_col_name = pid['x_general_column_label']
 
-			#add 'control' !!!!!!!!!! to tuple key
-			x_col_name = 'x'
-			if ('control', 'x','data','column','label') in control_dict.keys():
-				x_col_name = control_dict[('control', 'x','data','column','label')]
-			elif 'x_general_column_label' in pid.keys():
-				x_col_name = pid['x_general_column_label'][0]
+				y_col_name = 'y'
+				if 'y_data_column_label' in file_dict.keys():
+					y_col_name = file_dict['y_data_column_label']
 
-			y_col_name = 'y'
-			if ('control', 'y','data','column','label') in control_dict.keys():
-				y_col_name = control_dict[('y','data','column','label')]
+				elif 'y_general_column_label' in pid.keys():
+					y_col_name = pid['y_general_column_label']
 
-			elif 'y_general_column_label' in pid.keys():
-				y_col_name = pid['y_general_column_label'][0]
+				data_class = ReadInData(file_dict['name'], x_col_name, y_col_name, file_dict['label'])
 
-			data_class = ReadInData(f1, x_col_name, y_col_name, control_dict[axis_string][('control','file', 'label')])
+				getattr(data_class, data_class.file_type + '_read_in')()	
 
-			getattr(data_class, data_class.file_type + '_read_in')()	
+				x[k].append(np.log10(data_class.xvals))
 
-			x[k].append(np.log10(data_class.xvals))
+					#default is linear y scale
+				y_append_value = data_class.yvals
+				if 'limits' in control_dict[axis_string].keys():
+					if 'yscale' in control_dict[axis_string]['limits'].keys():
+						if control_dict[axis_string]['limits']['yscale'] == 'log':
+							y_append_value = np.log10(data_class.yvals)
 
-			if ('limits', 'yscale') in control_dict[axis_string].keys():
-				if control_dict[axis_string][('limits', 'yscale')] == 'lin':
-					y[k].append(data_class.yvals)
 				else:
-					y[k].append(np.log10(data_class.yvals))
+					if 'gen_yscale' in pid.keys():
+						if pid['gen_yscale'] == 'log':
+							y_append_value = np.log10(data_class.yvals)
 
-			else:
-				if pid['gen_yscale'][0] == 'lin':
-					y[k].append(data_class.yvals)
-				else:
-					y[k].append(np.log10(data_class.yvals))
+				y[k].append(data_class.yvals)
+				z[k].append(data_class.zvals)
 
-			z[k].append(data_class.zvals)
+			elif 'index' in control_dict[axis_string]:
+				index = int(control_dict[axis_string]['control']['index'])
+				x[k].append(x[index][0])
 
-		if ('control', 'index') in control_dict[axis_string]:
-			index = int(control_dict[axis_string][('control', 'index')])
-			x[k].append(x[index][0])
+				y[k].append(y[index][0])
 
-			y[k].append(y[index][0])
+				z[k].append(z[index][0])
 
-			z[k].append(z[index][0])
-
-
+		print(axis_string)
 
 
 	for k, axis_string in enumerate(control_dict.keys()):
@@ -452,71 +424,60 @@ def read_in_data(control_dict, pid):
 
 def plot_main(pid):
 
-	global WORKING_DIRECTORY
+	global WORKING_DIRECTORY, SNR_CUT
 
-	WORKING_DIRECTORY = pid['WORKING_DIRECTORY'][0]
+	WORKING_DIRECTORY = pid['WORKING_DIRECTORY']
+
+	SNR_CUT = pid['SNR_CUT']
 
 	plot_class_dict = {'horizon':Horizon, 'waterfall':Waterfall, 'ratio':Ratio}
 
-	#set up figure environment
-	t_or_f_dict = {'True':True, 'False':False}
-
+	#defaults for sharing axes
 	sharex = True
 	sharey = True
 
+	#if share axes options are in input, change to option
 	if 'sharex' in pid.keys():
-		sharex = t_or_f_dict[pid['sharex'][0]]
+		sharex = pid['sharex']
 
 	if 'sharey' in pid.keys():
-		sharey = t_or_f_dict[pid['sharey'][0]]
+		sharey = pid['sharey']
 
-	fig, ax = plt.subplots(nrows = int(pid['num_rows'][0]), ncols = int(pid['num_cols'][0]), sharex = sharex, sharey = sharey)
+	#declare figure and axes environments
+	fig, ax = plt.subplots(nrows = int(pid['num_rows']), ncols = int(pid['num_cols']), sharex = sharex, sharey = sharey)
 
-	fig.set_size_inches(float(pid['figure_width'][0]),float(pid['figure_height'][0]))
+	fig.set_size_inches(float(pid['figure_width']),float(pid['figure_height']))
 
 	try:
 		ax = ax.ravel()
 	except AttributeError:
 		ax = [ax]
 
-	control_dict = compile_plot_information(ax, pid)
-	plot_data = read_in_data(control_dict, pid)
+	plot_data = read_in_data(pid)
 
 	for i, axis in enumerate(ax):
-		legend_dict = {}
-		label_dict = {}
-		limits_dict = {}
-		extra_dict = {}
-
+		trans_dict = pid['plot_info'][str(i)]
+		for name in ['legend', 'limits', 'label', 'extra']:
+			if name not in trans_dict:
+				trans_dict[name] = {}
 		if 'gen_xlims' in pid.keys():
-			limits_dict[('limits','xlims')] = [float(val) for val in pid['gen_xlims']]
+			trans_dict['limits']['xlims'] = pid['gen_xlims']
 		if 'gen_dx' in pid.keys():
-			limits_dict[('limits','dx')] = float(pid['gen_dx'][0])
+			trans_dict['limits']['dx'] = float(pid['gen_dx'])
 
 		if 'gen_ylims' in pid.keys():
-			limits_dict[('limits','ylims')] = [float(val) for val in pid['gen_ylims']]
+			trans_dict['limits']['ylims'] = pid['gen_ylims']
 		if 'gen_dy' in pid.keys():
-			limits_dict[('limits','dy')] = float(pid['gen_dy'][0])
+			trans_dict['limits']['dy'] = float(pid['gen_dy'])
 		if 'gen_yscale' in pid.keys():
-			limits_dict[('limits', 'yscale')] = pid['gen_yscale']
+			trans_dict['limits']['yscale'] = pid['gen_yscale']
 
-
-		for key in control_dict[str(i)]:
-			if key[0] == 'legend':
-				legend_dict[key] = control_dict[str(i)][key]
-			if key[0] == 'label':
-				label_dict[key] = control_dict[str(i)][key]
-			if key[0] == 'limits':
-				limits_dict[key] = control_dict[str(i)][key]
-			if key[0] == 'extra':
-				extra_dict[key] = control_dict[str(i)][key]
-
-		extra_dict['gen_spacing'] = 'tight'
+		trans_dict['extra']['gen_spacing'] = 'tight'
 		if 'gen_spacing' in pid.keys():
-			if pid['gen_spacing'][0] == 'wide':
+			if pid['gen_spacing'] == 'wide':
 				extra_dict['gen_spacing'] = 'wide'
 
-		trans_plot_class = plot_class_dict[control_dict[str(i)]['type']](fig, axis, plot_data[i].return_x_list(),plot_data[i].return_y_list(), plot_data[i].return_z_list(), limits_dict, label_dict, extra_dict, legend_dict)
+		trans_plot_class = plot_class_dict[trans_dict['type']](fig, axis, plot_data[i].return_x_list(),plot_data[i].return_y_list(), plot_data[i].return_z_list(), trans_dict['limits'], trans_dict['label'], trans_dict['extra'], trans_dict['legend'])
 
 
 		trans_plot_class.make_plot()
@@ -539,11 +500,11 @@ def plot_main(pid):
 
 	adjusted = False
 
-	for axis_string in control_dict.keys():
+	for axis_string in pid['plot_info'].keys():
 		if adjusted == True:
 			continue
 		else:
-			if control_dict[axis_string]['type'] == 'ratio' or control_dict[axis_string]['type'] == 'waterfall':
+			if pid['plot_info'][axis_string]['type'] == 'ratio' or pid['plot_info'][axis_string]['type'] == 'waterfall':
 				fig.subplots_adjust(right=0.79)
 				adjusted = True
 
@@ -552,33 +513,24 @@ def plot_main(pid):
 	if 'fig_label_fontsize' in pid.keys():
 		fig_label_fontsize = float(pid['fig_label_fontsize'])
 
-	fig.text(0.01, 0.51, r'%s'%(pid['fig_y_label'][0].replace('*',' ')), rotation = 'vertical', va = 'center', fontsize = fig_label_fontsize)
+	fig.text(0.01, 0.51, r'%s'%(pid['fig_y_label']), rotation = 'vertical', va = 'center', fontsize = fig_label_fontsize)
 
-	fig.text(0.45, 0.02, r'%s'%(pid['fig_x_label'][0].replace('*',' ')), ha = 'center', fontsize = fig_label_fontsize)
+	fig.text(0.45, 0.02, r'%s'%(pid['fig_x_label']), ha = 'center', fontsize = fig_label_fontsize)
 		
 
 	if 'save_figure' in pid.keys():
-		if t_or_f_dict[pid['save_figure'][0]] == True:
-			plt.savefig(WORKING_DIRECTORY + '/' + pid['output_path'][0], dpi=200)
+		if pid['save_figure'] == True:
+			plt.savefig(WORKING_DIRECTORY + '/' + pid['output_path'], dpi=200)
 	
 	if 'show_figure' in pid.keys():
-		if t_or_f_dict[pid['show_figure'][0]] == True:
+		if pid['show_figure'] == True:
 			plt.show()
 
-
+	return
 
 if __name__ == '__main__':
 
-	f = open(sys.argv[1], 'r')
-	lines = f.readlines()
-	lines = [line for line in lines if line[0]!= '#']
-	lines = [line for line in lines if line[0]!= '\n']
-
-	plot_info_dict = OrderedDict()
-	for line in lines:
-		if ':' in line:
-			plot_info_dict[line.split()[0][0:-1]] = line.split()[1::]
-
+	plot_info_dict = json.load(open(sys.argv[1], 'r'), object_pairs_hook=OrderedDict)
 	plot_main(plot_info_dict)
 
 
