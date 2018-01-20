@@ -40,20 +40,28 @@ class PlotVals:
 
 
 class CreateSinglePlot:
-	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, extra_dict={}, legend_dict={}):
+	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, 
+		label_dict={}, extra_dict={}, legend_dict={}):
 		self.fig = fig
 		self.axis = axis
 		self.xvals = xvals
 		self.yvals = yvals
 		self.zvals = zvals
 
-		self.limits_dict, self.label_dict, self.extra_dict, self.legend_dict = limits_dict, label_dict, extra_dict, legend_dict
+		self.limits_dict, self.label_dict, self.extra_dict, self.legend_dict 
+			= limits_dict, label_dict, extra_dict, legend_dict
 
 	def setup_plot(self):
 
-		xticks = np.arange(float(self.limits_dict['xlims'][0]), float(self.limits_dict['xlims'][1]) + float(self.limits_dict['dx']), float(self.limits_dict['dx']))
+		xticks = np.arange(float(self.limits_dict['xlims'][0]), 
+			float(self.limits_dict['xlims'][1]) 
+			+ float(self.limits_dict['dx']), 
+			float(self.limits_dict['dx']))
 
-		yticks = np.arange(float(self.limits_dict['ylims'][0]), float(self.limits_dict['ylims'][1]) + float(self.limits_dict['dy']), float(self.limits_dict['dy']))
+		yticks = np.arange(float(self.limits_dict['ylims'][0]), 
+			float(self.limits_dict['ylims'][1])
+			 + float(self.limits_dict['dy']), 
+			 float(self.limits_dict['dy']))
 
 		self.axis.set_xlim(xticks.min(), xticks.max())
 		self.axis.set_ylim(yticks.min(), yticks.max())
@@ -72,9 +80,11 @@ class CreateSinglePlot:
 		self.axis.set_xticklabels([r'$10^{%i}$'%i for i in xticks[x_inds]])
 
 		if self.limits_dict['yscale'] == 'log':
-			self.axis.set_yticklabels([r'$10^{%i}$'%int(i) for i in yticks[y_inds]])
+			self.axis.set_yticklabels([r'$10^{%i}$'%int(i) 
+				for i in yticks[y_inds]])
 		else:
-			self.axis.set_yticklabels([r'$%i$'%int(i) for i in yticks[y_inds]])
+			self.axis.set_yticklabels([r'$%i$'%int(i) 
+				for i in yticks[y_inds]])
 
 		self.axis.grid(True,linestyle='-',color='0.75')
 
@@ -82,44 +92,59 @@ class CreateSinglePlot:
 		if 'title' in self.label_dict.keys():
 			if 'title_fontsize' in self.label_dict.keys():
 				title_fontsize = float(self.label_dict['title_fontsize'])
-			self.axis.set_title(r'%s'%self.label_dict['title'], fontsize=title_fontsize)
+			self.axis.set_title(r'%s'%self.label_dict['title'],
+				fontsize=title_fontsize)
 
 		label_fontsize = 20
 		if 'xlabel' in self.label_dict.keys():
 			if 'xlabel_fontsize' in self.label_dict.keys():
 				label_fontsize = float(self.label_dict['xlabel_fontsize'])
-			self.axis.set_xlabel(r'%s'%self.label_dict['xlabel'], fontsize=label_fontsize)
+			self.axis.set_xlabel(r'%s'%self.label_dict['xlabel'],
+				fontsize=label_fontsize)
 
 		label_fontsize = 20
 		if 'ylabel' in self.label_dict.keys():
 			if 'ylabel_fontsize' in self.label_dict.keys():
 				label_fontsize = float(self.label_dict['ylabel_fontsize'])
-			self.axis.set_ylabel(r'%s'%self.label_dict['ylabel'], fontsize=label_fontsize)
+			self.axis.set_ylabel(r'%s'%self.label_dict['ylabel'],
+				fontsize=label_fontsize)
 
 		return
 
 
 	def interpolate_data(self):
-		points = [np.shape(x_arr)[0]*np.shape(x_arr)[1] for x_arr in self.xvals]
+		points = [np.shape(x_arr)[0]*np.shape(x_arr)[1]
+			for x_arr in self.xvals]
 		min_points = np.argmin(points)
 		max_points = np.argmax(points)
 
-		new_x = np.linspace(self.xvals[min_points].min(), self.xvals[min_points].max(), np.shape(self.xvals[min_points])[1])
-		new_y = np.logspace(np.log10(self.yvals[min_points]).min(), np.log10(self.yvals[min_points]).max(), np.shape(self.xvals[min_points])[0])
+		new_x = np.linspace(self.xvals[min_points].min(),
+			self.xvals[min_points].max(),
+			np.shape(self.xvals[min_points])[1])
+
+		new_y = np.logspace(np.log10(self.yvals[min_points]).min(),
+			np.log10(self.yvals[min_points]).max(),
+			np.shape(self.xvals[min_points])[0])
 
 		new_x, new_y = np.meshgrid(new_x, new_y)
 
-		new_z = griddata((self.xvals[max_points].ravel(), self.yvals[max_points].ravel()), self.zvals[max_points].ravel(), (new_x, new_y), method='linear')
+		new_z = griddata((self.xvals[max_points].ravel(),
+			self.yvals[max_points].ravel()),
+			self.zvals[max_points].ravel(),
+			(new_x, new_y), method='linear')
 		
-		self.xvals[max_points], self.yvals[max_points], self.zvals[max_points] = new_x, new_y, new_z
+		self.xvals[max_points], self.yvals[max_points],
+			self.zvals[max_points] = new_x, new_y, new_z
 		
 		return
 
 
 class Ratio(CreateSinglePlot):
-	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, extra_dict={}, legend_dict={}):
+	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={},
+		label_dict={}, extra_dict={}, legend_dict={}):
 
-		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals, limits_dict, label_dict, extra_dict, legend_dict)
+		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals,
+			limits_dict, label_dict, extra_dict, legend_dict)
 
 
 
@@ -143,21 +168,27 @@ class Ratio(CreateSinglePlot):
 		diffout2, loss_gain_contour = self.find_difference_contour()
 
 		#plot ratio contours
-		sc3=self.axis.contourf(self.xvals[0],self.yvals[0],diffout2, levels = levels2, norm=norm2, extend='both', cmap=cmap2)
+		sc3=self.axis.contourf(self.xvals[0],self.yvals[0],diffout2,
+			levels = levels2, norm=norm2, extend='both', cmap=cmap2)
 
 		#toggle line contours of orders of magnitude of ratio comparisons
 		#ax[w].contour(xout,yout,Diffout2, np.array([-2.0, -1.0,1.0, 2.0]), norm=norm2, extend='both', colors = 'grey', linewidths = 1.0, linestyles= 'dashed')
 
 		#custom way to get loss/gain to be -1 for loss and +1 for gain
 
-		self.axis.contour(self.xvals[0],self.yvals[0],loss_gain_contour,1, colors = 'grey', linewidths = 2)
+		self.axis.contour(self.xvals[0],self.yvals[0],loss_gain_contour,1,
+			colors = 'grey', linewidths = 2)
 		#axis.set_ylim(float(pid['y_min'][0]), float(pid['y_max'][0]))
 
 		#establish colorbar and labels for ratio comp contour plot
 
 		cbar_ax2 = self.fig.add_axes([0.83, 0.1, 0.03, 0.4])
-		self.fig.colorbar(sc3, cax=cbar_ax2,ticks=np.array([-3.0,-2.0,-1.0,0.0, 1.0,2.0, 3.0]))
-		cbar_ax2.set_yticklabels([r'$10^{%i}$'%i for i in np.arange(-normval2, normval2+1.0, 1.0)], fontsize = 17)
+		self.fig.colorbar(sc3, cax=cbar_ax2,
+			ticks=np.array([-3.0,-2.0,-1.0,0.0, 1.0,2.0, 3.0]))
+
+		cbar_ax2.set_yticklabels([r'$10^{%i}$'%i
+			for i in np.arange(-normval2, normval2+1.0, 1.0)], fontsize = 17)
+
 		cbar_ax2.set_ylabel(r"$\rho_i/\rho_0$", fontsize = 20)
 
 		return
@@ -171,7 +202,8 @@ class Ratio(CreateSinglePlot):
 		inds_gained = np.where((zout>=SNR_CUT) & (control_zout< SNR_CUT))
 		inds_lost = np.where((zout<SNR_CUT) & (control_zout>=SNR_CUT))
 		inds_rid = np.where((zout<1.0) & (control_zout<1.0))
-		inds_check = np.where((zout.ravel()<1.0) & (control_zout.ravel()<1.0))[0]
+		inds_check = np.where((zout.ravel()<1.0)
+			& (control_zout.ravel()<1.0))[0]
 
 		#set diff2 to ratio for purposed of determining raito differences
 		diff2 = zout/control_zout
@@ -211,36 +243,45 @@ class Ratio(CreateSinglePlot):
 
 
 class Waterfall(CreateSinglePlot):
-	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, extra_dict={}, legend_dict={}):
+	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={},
+		label_dict={}, extra_dict={}, legend_dict={}):
 
-		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals, limits_dict, label_dict, extra_dict, legend_dict)
+		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals,
+			limits_dict, label_dict, extra_dict, legend_dict)
 
 	def make_plot(self):
 		#sets levels of main contour plot
-		colors1 = ['None','darkblue', 'blue', 'deepskyblue', 'aqua','greenyellow', 'orange', 'red','darkred']
+		colors1 = ['None','darkblue', 'blue', 'deepskyblue', 'aqua',
+			'greenyellow', 'orange', 'red','darkred']
 		levels = np.array([0.,10,20,50,100,200,500,1000,3000,1e6])
 		
 		#produce filled contour of SNR vs. z vs. Mtotal
-		sc=self.axis.contourf(self.xvals[0],self.yvals[0],self.zvals[0], levels = levels, colors=colors1)
+		sc=self.axis.contourf(self.xvals[0],self.yvals[0],self.zvals[0],
+			levels = levels, colors=colors1)
 
 		#add colorbar axes for both contour plots
 		cbar_ax = self.fig.add_axes([0.83, 0.55, 0.03, 0.4])
 
 			#establish colorbar and labels for main contour plot
 		self.fig.colorbar(sc, cax=cbar_ax, ticks=levels)
-		cbar_ax.set_yticklabels([int(i) for i in np.delete(levels,-1)], fontsize = 17)
+		cbar_ax.set_yticklabels([int(i)
+			for i in np.delete(levels,-1)], fontsize = 17)
+
 		cbar_ax.set_ylabel(r"$\rho_i$", fontsize = 20)
 		return
 
 
 class Horizon(CreateSinglePlot):
-	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, label_dict={}, extra_dict={}, legend_dict={}):
+	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={},
+		label_dict={}, extra_dict={}, legend_dict={}):
 
-		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals, limits_dict, label_dict, extra_dict, legend_dict)
+		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals,
+			limits_dict, label_dict, extra_dict, legend_dict)
 
 	def make_plot(self):
 		#sets levels of main contour plot
-		colors1 = ['blue', 'green', 'red','purple', 'orange', 'gold','magenta']
+		colors1 = ['blue', 'green', 'red','purple', 'orange',
+			'gold','magenta']
 
 		contour_val = SNR_CUT
 
@@ -248,14 +289,17 @@ class Horizon(CreateSinglePlot):
 			contour_val = float(self.extra_dict['snr_contour_value'])
 		
 		for j in range(len(self.zvals)):
-			hz = self.axis.contour(self.xvals[j],self.yvals[j],self.zvals[j], np.array([contour_val]), colors = colors1[j], linewidths = 1., linestyles= 'solid')
+			hz = self.axis.contour(self.xvals[j],self.yvals[j],
+				self.zvals[j], np.array([contour_val]), 
+				colors = colors1[j], linewidths = 1., linestyles= 'solid')
 
 			
 			v = np.transpose(hz.collections[0].get_paths()[0].vertices)
 
 			#plot invisible lines for purpose of creating a legend
 			if legend_dict != {}:
-				self.axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j], label = self.legend_dict['labels'][j])
+				self.axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j],
+					label = self.legend_dict['labels'][j])
 
 			else:
 				self.axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j])
@@ -279,7 +323,8 @@ class Horizon(CreateSinglePlot):
 			if 'ncol' in self.legend_dict.keys():
 				ncol = int(self.legend_dict['ncol'])	
 
-			self.axis.legend(loc=loc, bbox_to_anchor=bbox_to_anchor, ncol=ncol, prop={'size':size})
+			self.axis.legend(loc=loc, bbox_to_anchor=bbox_to_anchor,
+				ncol=ncol, prop={'size':size})
 
 
 		return
@@ -288,9 +333,13 @@ class Horizon(CreateSinglePlot):
 
 class ReadInData:
 	def __init__(self, file_name, x_col_name, y_col_name, z_col_name):
-		self.file_name, self.x_col_name, self.y_col_name, self.z_col_name = file_name, x_col_name, y_col_name, z_col_name
+		self.file_name, self.x_col_name, self.y_col_name, self.z_col_name =
+			file_name, x_col_name, y_col_name, z_col_name
 
-		self.file_type = self.file_name.split('.')[-1]	
+		self.file_type = self.file_name.split('.')[-1]
+
+		if self.file_type == 'csv':
+			self.file_type = 'txt'
 
 	def txt_read_in(self):
 		data = ascii.read(WORKING_DIRECTORY + '/' + self.file_name)
@@ -303,6 +352,22 @@ class ReadInData:
 		self.zvals = np.reshape(data[self.z_col_name], (num_y_pts,num_x_pts))
 
 		return
+
+	def hdf5_read_in(self):
+		with hdf5.File(WORKING_DIRECTORY + '/' + self.file_name) as f:
+			data = f['data']
+
+			num_x_pts = len(np.unique(data[self.x_col_name][:]))
+			num_y_pts = len(np.unique(data[self.y_col_name][:]))
+
+			self.xvals = np.reshape(data[self.x_col_name][:],
+				(num_y_pts,num_x_pts))
+			self.yvals = np.reshape(data[self.y_col_name][:],
+				(num_y_pts,num_x_pts))
+			self.zvals = np.reshape(data[self.z_col_name][:],
+				(num_y_pts,num_x_pts))
+
+		return	
 
 
 def read_in_data(pid):
@@ -329,7 +394,8 @@ def read_in_data(pid):
 			elif 'y_general_column_label' in pid['general'].keys():
 				y_col_name = pid['general']['y_general_column_label']
 
-			data_class = ReadInData(file_dict['name'], x_col_name, y_col_name, file_dict['label'])
+			data_class = ReadInData(file_dict['name'], 
+				x_col_name, y_col_name, file_dict['label'])
 
 			getattr(data_class, data_class.file_type + '_read_in')()	
 
@@ -341,7 +407,8 @@ def read_in_data(pid):
 			y_append_value = data_class.yvals
 			if 'limits' in control_dict[axis_string].keys():
 				if 'yscale' in control_dict[axis_string]['limits'].keys():
-					if control_dict[axis_string]['limits']['yscale'] == 'log':
+					if control_dict[axis_string]['limits']['yscale'] 
+						== 'log':
 						y_append_value = np.log10(data_class.yvals)
 
 			else:
@@ -371,7 +438,8 @@ def read_in_data(pid):
 				elif 'y_general_column_label' in pid['general'].keys():
 					y_col_name = pid['general']['y_general_column_label']
 
-				data_class = ReadInData(file_dict['name'], x_col_name, y_col_name, file_dict['label'])
+				data_class = ReadInData(file_dict['name'],
+					x_col_name, y_col_name, file_dict['label'])
 
 				getattr(data_class, data_class.file_type + '_read_in')()	
 
@@ -381,7 +449,8 @@ def read_in_data(pid):
 				y_append_value = data_class.yvals
 				if 'limits' in control_dict[axis_string].keys():
 					if 'yscale' in control_dict[axis_string]['limits'].keys():
-						if control_dict[axis_string]['limits']['yscale'] == 'log':
+						if control_dict[axis_string]['limits']['yscale']
+							== 'log':
 							y_append_value = np.log10(data_class.yvals)
 
 				else:
@@ -430,7 +499,8 @@ def plot_main(pid):
 
 	SNR_CUT = pid['general']['SNR_CUT']
 
-	plot_class_dict = {'horizon':Horizon, 'waterfall':Waterfall, 'ratio':Ratio}
+	plot_class_dict = {'horizon':Horizon, 'waterfall':Waterfall,
+		'ratio':Ratio}
 
 	#defaults for sharing axes
 	sharex = True
@@ -444,7 +514,9 @@ def plot_main(pid):
 		sharey = pid['general']['sharey']
 
 	#declare figure and axes environments
-	fig, ax = plt.subplots(nrows = int(pid['general']['num_rows']), ncols = int(pid['general']['num_cols']), sharex = sharex, sharey = sharey)
+	fig, ax = plt.subplots(nrows = int(pid['general']['num_rows']),
+		ncols = int(pid['general']['num_cols']),
+		sharex = sharex, sharey = sharey)
 
 	#set figure size
 	figure_width = 8
@@ -486,7 +558,11 @@ def plot_main(pid):
 			if pid['general']['gen_spacing'] == 'wide':
 				extra_dict['gen_spacing'] = 'wide'
 
-		trans_plot_class = plot_class_dict[trans_dict['type']](fig, axis, plot_data[i].return_x_list(),plot_data[i].return_y_list(), plot_data[i].return_z_list(), trans_dict['limits'], trans_dict['label'], trans_dict['extra'], trans_dict['legend'])
+		trans_plot_class = plot_class_dict[trans_dict['type']](fig, axis,
+			plot_data[i].return_x_list(),plot_data[i].return_y_list(),
+			plot_data[i].return_z_list(),
+			trans_dict['limits'], trans_dict['label'],
+			trans_dict['extra'], trans_dict['legend'])
 
 
 		trans_plot_class.make_plot()
@@ -507,7 +583,8 @@ def plot_main(pid):
 		fig.subplots_adjust(wspace=0.0, hspace=0.0)
 
 
-	plot_types = [pid['plot_info'][axis_string]['type'] for axis_string in pid['plot_info'].keys()]
+	plot_types = [pid['plot_info'][axis_string]['type']
+		for axis_string in pid['plot_info'].keys()]
 
 	if 'ratio' in plot_types or 'waterfall' in plot_types:
 		fig.subplots_adjust(right=0.79)
@@ -517,14 +594,17 @@ def plot_main(pid):
 	if 'fig_label_fontsize' in pid['general'].keys():
 		fig_label_fontsize = float(pid['general']['fig_label_fontsize'])
 
-	fig.text(0.01, 0.51, r'%s'%(pid['general']['fig_y_label']), rotation = 'vertical', va = 'center', fontsize = fig_label_fontsize)
+	fig.text(0.01, 0.51, r'%s'%(pid['general']['fig_y_label']),
+		rotation = 'vertical', va = 'center', fontsize = fig_label_fontsize)
 
-	fig.text(0.45, 0.02, r'%s'%(pid['general']['fig_x_label']), ha = 'center', fontsize = fig_label_fontsize)
+	fig.text(0.45, 0.02, r'%s'%(pid['general']['fig_x_label']),
+		ha = 'center', fontsize = fig_label_fontsize)
 		
 
 	if 'save_figure' in pid['general'].keys():
 		if pid['general']['save_figure'] == True:
-			plt.savefig(WORKING_DIRECTORY + '/' + pid['general']['output_path'], dpi=200)
+			plt.savefig(WORKING_DIRECTORY + '/' + 
+				pid['general']['output_path'], dpi=200)
 	
 	if 'show_figure' in pid['general'].keys():
 		if pid['general']['show_figure'] == True:
@@ -534,7 +614,8 @@ def plot_main(pid):
 
 if __name__ == '__main__':
 
-	plot_info_dict = json.load(open(sys.argv[1], 'r'), object_pairs_hook=OrderedDict)
+	plot_info_dict = json.load(open(sys.argv[1], 'r'),
+		object_pairs_hook=OrderedDict)
 	plot_main(plot_info_dict)
 
 
