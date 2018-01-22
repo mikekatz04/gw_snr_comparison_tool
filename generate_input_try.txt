@@ -8,9 +8,9 @@ WORKING_DIRECTORY: .
 #choose if you want all signal or separated phase signals that also includes full signal (separated signal can be more complicated)
 signal_type: all ins mrg rd
 
-output_string: test_class_method
+output_string: test_savetxt
 
-output_file_type: hdf5
+output_file_type: txt
 
 add_wd_noise: Both
 
