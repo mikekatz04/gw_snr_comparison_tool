@@ -28,34 +28,46 @@ from astropy.io import ascii
 
 
 class CreateSinglePlot:
-	"""
-	This is the base class for the subclasses designed for creating the plots.
-
-		Mandatory Inputs:
-			fig - Figure environment for the plots.
-			axis - Axis object representing specific plot.
-			xvals - list of x-value arrays for the plot.
-			yvals - list of y-value arrays for the plot.
-			zvals - list of z-value arrays for the plot.
-
-		Optional Inputs:
-			limits_dict - dict containing axis limits and axes labels information.
-
-				limits_dict inputs/keys:
-					xlims, ylims - length 2 list with min followed by max. default is log for x and linear for y. If log, the limits should be log of values.
-					dx, dy - x-change and y-change
-					xscale, yscale - scaling for axes
-
-			label_dict - dict containing label information for x labels, y labels, and title.
-
-			extra_dict - dict containing extra plot information to aid in customization.
-
-			legend_dict - dict describing legend labels and properties. This is mainly used for horizon plots.
-	"""
-
 
 	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={}, 
 		label_dict={}, extra_dict={}, legend_dict={}):
+		
+		"""
+		This is the base class for the subclasses designed for creating the plots.
+
+			Mandatory Inputs:
+				fig - Figure environment for the plots.
+				axis - Axis object representing specific plot.
+				xvals - list of x-value arrays for the plot.
+				yvals - list of y-value arrays for the plot.
+				zvals - list of z-value arrays for the plot.
+
+			Optional Inputs:
+				limits_dict - dict containing axis limits and axes labels information.
+
+					limits_dict inputs/keys:
+						xlims, ylims - length 2 list of floats - min followed by max. default is log for x and linear for y. If log, the limits should be log of values.
+						dx, dy - float - x-change and y-change
+						xscale, yscale - string - scaling for axes. Either 'log' or 'lin'.
+
+				label_dict - dict containing label information for x labels, y labels, and title.
+
+					label_dict inputs/keys:
+						title - string - title for each plot
+						title_fontsize - float - fontsize for title_fontsize
+						xlabel, ylabel - string - x, y axis label
+						xlabel_fontsize, ylabel_fontsize - float - x,y axis label fontsize		
+
+				extra_dict - dict containing extra plot information to aid in customization.
+
+					extra_dict inputs/keys:
+						snr_contour_value - float - snr value for contour lines on a horizon plot. This will override SNR_CUT for horizon plots. 
+						spacing - string - Choices are 'tight' or 'wide' spacing for overall plots. 'tight' spacing will cutouf the last entry in ticklabels.
+
+				legend_dict - dict describing legend labels and properties. This is mainly used for horizon plots.
+
+					legend_dict inputs/keys given under horizon plot docstring. 
+		"""
 
 		self.fig = fig
 		self.axis = axis
@@ -296,15 +308,29 @@ class Horizon(CreateSinglePlot):
 
 	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={},
 		label_dict={}, extra_dict={}, legend_dict={}):
+		"""
+		Horizon is a subclass of CreateSinglePlot. Refer to CreateSinglePlot class docstring for input information. 
+
+		Horizon plots snr contour lines for a designated SNR value. The defaul is SNR_CUT, but can be overridden with "snr_contour_value" in extra_dict. Horizon can take as many curves as the user prefers and will plot a legend to label those curves. With its current design, it can only contour one snr value. 
+
+		Additional Inputs:
+
+		legend_dict - dict describing legend labels and properties.
+		legend_dict inputs/keys:
+						labels - list of strings - contains labels for each plot that will appear in the legend.
+						loc - string or int - location of legend. Refer to matplotlib documentation for legend placement for choices. Default is 'upper left'. 
+						size - float - size of legend. Default is 10. 
+						bbox_to_anchor - list of floats, length 2 or 4 - Places legend in custom location. First two entries represent corner of box is placed. Second two entries (not required) represent how to stretch the legend box from there. See matplotlib documentation on bbox_to_anchor for specifics. 
+						ncol - int - number of columns in legend. Default is 1. 
+		"""
 
 		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals,
 			limits_dict, label_dict, extra_dict, legend_dict)
 
 	def make_plot(self):
 		"""
-		test_test
+		This method creats a horizon plot as desribed in the Horizon class docstring. The class contains an axis as a part of self. The horizon plot is added to this axis. 
 		"""
-
 		#sets levels of main contour plot
 		colors1 = ['blue', 'green', 'red','purple', 'orange',
 			'gold','magenta']
