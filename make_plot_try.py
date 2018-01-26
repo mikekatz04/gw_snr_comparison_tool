@@ -298,7 +298,12 @@ class Ratio(CreateSinglePlot):
 				self.axis.contour(self.xvals[0],self.yvals[0],diff_out, np.array([-2.0, -1.0, 1.0, 2.0]), colors = 'black', linewidths = 1.0)
 
 		#plot loss gain contour
-		self.axis.contour(self.xvals[0],self.yvals[0],loss_gain_contour,1,colors = 'grey', linewidths = 2)
+		loss_gain_status = True
+		if "turn_off_loss_gain" in self.extra_dict.keys():
+			loss_gain_status = False
+			
+		if loss_gain_status == True:
+			self.axis.contour(self.xvals[0],self.yvals[0],loss_gain_contour,1,colors = 'grey', linewidths = 2)
 
 		#establish colorbar and labels for ratio comp contour plot
 		cbar_ax2 = self.fig.add_axes([0.83, 0.1, 0.03, 0.4])
