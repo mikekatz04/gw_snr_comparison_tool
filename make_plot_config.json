@@ -44,7 +44,9 @@
 		"file":[
 			{"name":"Sense_output/HBW_q5_s65_D.txt","label":"LISA_prop_curve_all"}
 			],
-		"type": "waterfall"
+		"type": "waterfall",
+		"extra":
+			{"contour_vals": [0.0,1e1,1e2,1e3,1e4,1e5,1e6]}
 		},
 
 	"1":{
@@ -62,7 +64,7 @@
 		"limits":
 			{"xlims": [2.0,5.0],"dx": 1.0},
 		"extra":
-			{"contour_vals": [0.0,1e1,1e2,1e3,1e4,1e5,1e6]}
+			{"ratio_contour_lines":true}
 		},
 
 	"2":{
@@ -76,7 +78,6 @@
 
 		"label":
 			{"title": "Classic LISA vs. Proposed LISA","title_fontsize": 18, "xlabel": "test2 label", "ylabel": "testy label"}
-
 		},
 
 	"3":{

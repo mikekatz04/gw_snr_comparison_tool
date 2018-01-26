@@ -99,6 +99,7 @@ class CreateSinglePlot:
 
 		"""
 
+		#setup xticks and yticks and limits
 		xticks = np.arange(float(self.limits_dict['xlims'][0]), 
 			float(self.limits_dict['xlims'][1]) 
 			+ float(self.limits_dict['dx']), 
@@ -112,16 +113,19 @@ class CreateSinglePlot:
 		self.axis.set_xlim(xticks.min(), xticks.max())
 		self.axis.set_ylim(yticks.min(), yticks.max())
 		
+		#adjust ticks for spacing. If 'wide' then show all labels, if 'tight' remove end labels. 
 		if self.extra_dict['spacing'] == 'wide':
 			x_inds = np.arange(len(xticks))
 			y_inds = np.arange(len(yticks))
 		else:
+			#remove end labels
 			x_inds = np.arange(1, len(xticks)-1)
 			y_inds = np.arange(1, len(yticks)-1)
 
 		self.axis.set_xticks(xticks[x_inds])
 		self.axis.set_yticks(yticks[y_inds])
 
+		#set tick labels based on scale
 		if self.limits_dict['xscale'] == 'log':
 			self.axis.set_xticklabels([r'$10^{%i}$'%int(i) 
 				for i in xticks[x_inds]])
@@ -136,8 +140,10 @@ class CreateSinglePlot:
 			self.axis.set_yticklabels([r'$%i$'%int(i) 
 				for i in yticks[y_inds]])
 
+		#add grid
 		self.axis.grid(True, linestyle='-', color='0.75')
 
+		#add title
 		title_fontsize = 20
 		if 'title' in self.label_dict.keys():
 			if 'title_fontsize' in self.label_dict.keys():
@@ -145,6 +151,7 @@ class CreateSinglePlot:
 			self.axis.set_title(r'%s'%self.label_dict['title'],
 				fontsize=title_fontsize)
 
+		#add x,y labels
 		label_fontsize = 20
 		if 'xlabel' in self.label_dict.keys():
 			if 'xlabel_fontsize' in self.label_dict.keys():
@@ -163,14 +170,17 @@ class CreateSinglePlot:
 
 	def interpolate_data(self):
 		"""
-		Method interpolates data if two data sets have different shapes. This method is mainly used on ratio plots to allow for direct comparison of snrs. However, functionality will be added for waterfall and horizon plts.  
+		Method interpolates data if two data sets have different shapes. This method is mainly used on ratio plots to allow for direct comparison of snrs. The higher resolution array is reduced to the lower resolution. However, functionality will be added for waterfall and horizon plts. 
 		"""
 
+		#check the number of points in the two arrays and select max and min
 		points = [np.shape(x_arr)[0]*np.shape(x_arr)[1]
 			for x_arr in self.xvals]
+
 		min_points = np.argmin(points)
 		max_points = np.argmax(points)
 
+		#create a new arrays to replace array with more to interpolated array with less points.
 		new_x = np.linspace(self.xvals[min_points].min(),
 			self.xvals[min_points].max(),
 			np.shape(self.xvals[min_points])[1])
@@ -179,8 +189,10 @@ class CreateSinglePlot:
 			np.log10(self.yvals[min_points]).max(),
 			np.shape(self.xvals[min_points])[0])
 
+		#grid new arrays
 		new_x, new_y = np.meshgrid(new_x, new_y)
 
+		#use griddate fro scipy.interpolate to create new z array
 		new_z = griddata((self.xvals[max_points].ravel(),
 			self.yvals[max_points].ravel()),
 			self.zvals[max_points].ravel(),
@@ -256,32 +268,36 @@ class Ratio(CreateSinglePlot):
 		This methd creates the ratio plot. 
 		"""
 
+		#check to make sure ratio plot has 2 arrays to compare. 
 		if len(self.xvals) != 2:
 			raise Exception("Length of vals not equal to 2. Ratio plots must have 2 inputs.")
 
-		#interpolate data so that the dimensions of each data set are the same
+		#check and interpolate data so that the dimensions of each data set are the same
 		if np.shape(self.xvals[0]) != np.shape(self.xvals[1]):
 			self.interpolate_data()
 
 		#sets colormap for ratio comparison plot
 		cmap2 = cm.seismic
 
-		#set attributes of ratio comparison contour
+		#set values of ratio comparison contour
 		normval2 = 2.0
 		num_contours2 = 40 #must be even
 		levels2 = np.linspace(-normval2, normval2,num_contours2)
 		norm2 = colors.Normalize(-normval2, normval2)
 
-		#initialize dimensions of loss/gain contour and ratio contour
-		diffout2, loss_gain_contour = self.find_difference_contour()
+		#find loss/gain contour and ratio contour
+		diff_out, loss_gain_contour = self.find_difference_contour()
 
 		#plot ratio contours
-		sc3=self.axis.contourf(self.xvals[0],self.yvals[0],diffout2,
+		sc3=self.axis.contourf(self.xvals[0],self.yvals[0],diff_out,
 			levels = levels2, norm=norm2, extend='both', cmap=cmap2)
 
 		#toggle line contours of orders of magnitude of ratio comparisons
-		#ax[w].contour(xout,yout,Diffout2, np.array([-2.0, -1.0,1.0, 2.0]), norm=norm2, extend='both', colors = 'grey', linewidths = 1.0, linestyles= 'dashed')
+		if 'ratio_contour_lines' in self.extra_dict.keys():
+			if self.extra_dict['ratio_contour_lines'] == True:
+				self.axis.contour(self.xvals[0],self.yvals[0],diff_out, np.array([-2.0, -1.0, 1.0, 2.0]), colors = 'black', linewidths = 1.0)
 
+		#plot loss gain contour
 		self.axis.contour(self.xvals[0],self.yvals[0],loss_gain_contour,1,colors = 'grey', linewidths = 2)
 
 		#establish colorbar and labels for ratio comp contour plot
@@ -300,50 +316,58 @@ class Ratio(CreateSinglePlot):
 
 			The input data sets need to be the same shape. CreateSinglePlot.interpolate_data corrects for two datasets of different shape.
 
-			Returns: loss_gain_contour, ratio contour (diffout2)
+			Returns: loss_gain_contour, ratio contour (diff)
 			
 		"""
 
-		#set indices of loss,gained. Also set rid for when neither curve measures source. inds_check tells the ratio calculator not to control_zout if both SNRs are below 1
 		zout = self.zvals[0]
 		control_zout = self.zvals[1]
 
+		#set comparison value. Default is SNR_CUT
 		comparison_value = SNR_CUT
 		if 'snr_contour_value' in self.extra_dict.keys():
 			comparison_value = self.extra_dict['snr_contour_value']
 
+		#set indices of loss,gained. inds_check tells the ratio calculator not to control_zout if both SNRs are below 1
 		inds_gained = np.where((zout>=comparison_value) & (control_zout< comparison_value))
 		inds_lost = np.where((zout<comparison_value) & (control_zout>=comparison_value))
+
+		#Also set rid for when neither curve measures source. 
 		inds_rid = np.where((zout<1.0) & (control_zout<1.0))
-		inds_check = np.where((zout.ravel()<1.0)
-			& (control_zout.ravel()<1.0))[0]
 
 		#set diff2 to ratio for purposed of determining raito differences
-		diff2 = zout/control_zout
+		diff = zout/control_zout
 
 		#flatten arrays	
-		diffcheck = diff2.ravel()
-		diff2 =  diff2.ravel()
+		diff =  diff.ravel()
 
 		# the following determines the log10 of the ratio difference if it is extremely small, we neglect and put it as zero (limits chosen to resemble ratios of less than 1.05 and greater than 0.952)
+		diff = np.log10(diff)*(diff >= 1.05) + (-np.log10(1.0/diff))*(diff<=0.952) + 0.0*((diff<1.05) & (diff>0.952))
+
+		"""
+		#inds_check tells the ratio calculator not to make comparison if both SNRs are below 0.1
+		inds_check = np.where((zout.ravel()<0.1)
+			& (control_zout.ravel()<0.1))[0]
+
 		i = 0
-		for d in diff2:
+		for d in diff:
 			if i not in inds_check:
 				if d >= 1.05:
-					diff2[i] = np.log10(diff2[i])
+					diff[i] = np.log10(diff[i])
 				elif d<= 0.952:
-					diff2[i] = -np.log10(1.0/diff2[i])
+					diff[i] = -np.log10(1.0/diff[i])
 				else:
-					diff2[i] = 0.0
+					diff[i] = 0.0
 			else: 
-				diff2[i] = 0.0
+				diff[i] = 0.0
 			i+=1
+		"""
 
 		#reshape difference array for dimensions of contour
-		diffout2 = np.reshape(diff2, np.shape(zout))
+		diff = np.reshape(diff, np.shape(zout))
 
-		#change inds rid value to zero
-		diffout2[inds_rid] = 0.0
+		#change inds rid and inds_check value to zero
+		diff[inds_rid] = 0.0
 
 		#initialize loss/gain
 		loss_gain_contour = np.zeros(np.shape(zout))
@@ -351,10 +375,11 @@ class Ratio(CreateSinglePlot):
 		#fill out loss/gain
 		j = -1
 		for i in (inds_lost, inds_gained):
+			#change all of inds at one time to j
 			loss_gain_contour[i] = j
 			j += 2
 
-		return diffout2, loss_gain_contour
+		return diff, loss_gain_contour
 
 
 class Horizon(CreateSinglePlot):
@@ -383,34 +408,32 @@ class Horizon(CreateSinglePlot):
 
 	def make_plot(self):
 		"""
-		This method adds a horizon plot as desribed in the Horizon class docstring. The class contains an axis as a part of self. The horizon plot is added to this axis. 
+		This method adds a horizon plot as desribed in the Horizon class docstring. The class contains an axis as a part of self. The horizon plot is added to this axis. Can compare up to 7 curves.
 		"""
 		#sets levels of main contour plot
 		colors1 = ['blue', 'green', 'red','purple', 'orange',
 			'gold','magenta']
 
+		#set contour value. Default is SNR_CUT.
 		contour_val = SNR_CUT
-
 		if 'snr_contour_value' in self.extra_dict.keys():
 			contour_val = float(self.extra_dict['snr_contour_value'])
 		
+		#plot contours
 		for j in range(len(self.zvals)):
 			hz = self.axis.contour(self.xvals[j],self.yvals[j],
 				self.zvals[j], np.array([contour_val]), 
 				colors = colors1[j], linewidths = 1., linestyles= 'solid')
 
-			v = np.transpose(hz.collections[0].get_paths()[0].vertices)
-
 			#plot invisible lines for purpose of creating a legend
 			if self.legend_dict != {}:
+				#plot a curve off of the grid with same color for legend label.
 				self.axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j],
 					label = self.legend_dict['labels'][j])
 
-			else:
-				self.axis.plot([0.1,0.2],[0.1,0.2],color = colors1[j])
 			
 		if self.legend_dict != {}:
-			#defaults followed by change
+			#Add legend. Defaults followed by change.
 			loc = 'upper left'
 			if 'loc' in self.legend_dict.keys():
 				loc = self.legend_dict['loc']
@@ -477,7 +500,7 @@ class ReadInData:
 
 			Optional Inputs:
 				limits_dict - dict - contains info on scaling of x and y
-					xscale, yscale - string - 'log' or 'lin' representing scale of data in x and y
+					xscale, yscale - string - 'log' or 'lin' representing scale of data in x and y. 'lin' is default.
 
 						
 
@@ -493,11 +516,13 @@ class ReadInData:
 
 		self.file_name = file_dict['name']
 
+		#get file type
 		self.file_type = self.file_name.split('.')[-1]
 
 		if self.file_type == 'csv':
 			self.file_type = 'txt'
 
+		#find x,y column names
 		self.x_col_name = 'x'
 		if 'x_column_label' in file_dict.keys():
 			self.x_col_name = file_dict['x_column_label']
@@ -513,10 +538,13 @@ class ReadInData:
 			if 'y_column_label' in pid['general'].keys():
 				self.y_col_name = pid['general']['y_column_label']
 
+		#z column name
 		self.z_col_name = file_dict['label']
 
+		#Extract data with either txt or hdf5 methods.
 		getattr(self, self.file_type + '_read_in')()	
 
+		#append x,y values based on xscale, yscale.
 		self.x_append_value = self.xvals
 		if 'xscale' in limits_dict.keys():
 			if limits_dict['xscale'] =='log':
@@ -526,7 +554,6 @@ class ReadInData:
 				if pid['general']['xscale'] == 'log':
 					self.x_append_value = np.log10(self.xvals)
 
-		#default is linear y scale
 		self.y_append_value = self.yvals
 		if 'yscale' in limits_dict.keys():
 			if limits_dict =='log':
@@ -548,11 +575,14 @@ class ReadInData:
 			Return: Add x,y,z values to self.
 		"""
 
+		#read in
 		data = ascii.read(WORKING_DIRECTORY + '/' + self.file_name)
 
+		#find number of distinct x and y points.
 		num_x_pts = len(np.unique(data[self.x_col_name]))
 		num_y_pts = len(np.unique(data[self.y_col_name]))
 
+		#create 2D arrays of x,y,z
 		self.xvals = np.reshape(np.asarray(data[self.x_col_name]), (num_y_pts,num_x_pts))
 		self.yvals = np.reshape(np.asarray(data[self.y_col_name]), (num_y_pts,num_x_pts))
 		self.zvals = np.reshape(np.asarray(data[self.z_col_name]), (num_y_pts,num_x_pts))
@@ -570,11 +600,15 @@ class ReadInData:
 		"""
 
 		with hdf5.File(WORKING_DIRECTORY + '/' + self.file_name) as f:
+
+			#read in
 			data = f['data']
 
+			#find number of distinct x and y points.
 			num_x_pts = len(np.unique(data[self.x_col_name][:]))
 			num_y_pts = len(np.unique(data[self.y_col_name][:]))
 
+			#create 2D arrays of x,y,z
 			self.xvals = np.reshape(data[self.x_col_name][:],
 				(num_y_pts,num_x_pts))
 			self.yvals = np.reshape(data[self.y_col_name][:],
@@ -609,13 +643,15 @@ def read_in_data(pid):
 						index - int - represents the index of a plot to compare to its first set of z values. 
 	"""
 
-
+	#set control_dict to plot_info part of pid.
 	control_dict = pid['plot_info']
 
+	#set empty lists for x,y,z
 	x = [[]for i in np.arange(len(control_dict.keys()))]
 	y = [[] for i in np.arange(len(control_dict.keys()))]
 	z = [[] for i in np.arange(len(control_dict.keys()))]
 
+	#read in base files/data
 	for k, axis_string in enumerate(control_dict.keys()):
 		limits_dict = {}
 		if 'limits' in control_dict[axis_string].keys():
@@ -630,6 +666,7 @@ def read_in_data(pid):
 
 		print(axis_string)
 
+	#read or append control values for ratio plots
 	for k, axis_string in enumerate(control_dict.keys()):
 		if 'control' in control_dict[axis_string]:
 			if 'name' in control_dict[axis_string]['control']:
@@ -652,7 +689,7 @@ def read_in_data(pid):
 
 		print(axis_string)
 
-
+	#add data from plots to current plot based on index
 	for k, axis_string in enumerate(control_dict.keys()):
 		
 		#takes first file from plot
@@ -665,7 +702,7 @@ def read_in_data(pid):
 				y[k].append(y[index][0])
 				z[k].append(z[index][0])
 
-
+	#transfer lists in PlotVals class.
 	value_classes = []
 	for k in range(len(x)):
 		value_classes.append(PlotVals(x[k],y[k],z[k]))
@@ -692,6 +729,7 @@ def plot_main(pid):
 	if "switch_backend" in pid['general'].keys():
 		plt.switch_backend(pid['general']['switch_backend'])
 
+	#define dict with different plot classes
 	plot_class_dict = {'horizon':Horizon, 'waterfall':Waterfall,
 		'ratio':Ratio}
 
@@ -722,13 +760,16 @@ def plot_main(pid):
 
 	fig.set_size_inches(figure_width,figure_height)
 
+	#create list of ax. Catch error if it is a sinlge plot.
 	try:
 		ax = ax.ravel()
 	except AttributeError:
 		ax = [ax]
 
+	#read in data
 	plot_data = read_in_data(pid)
 
+	#plot everything. First check general dict for parameters related to plots.
 	for i, axis in enumerate(ax):
 		trans_dict = pid['plot_info'][str(i)]
 		for name in ['legend', 'limits', 'label', 'extra']:
@@ -753,20 +794,25 @@ def plot_main(pid):
 			if pid['general']['spacing'] == 'wide':
 				trans_dict['extra']['spacing'] = 'wide'
 
+		#create plot class
 		trans_plot_class = plot_class_dict[trans_dict['type']](fig, axis,
 			plot_data[i].x_arr_list,plot_data[i].y_arr_list,
 			plot_data[i].z_arr_list,
 			trans_dict['limits'], trans_dict['label'],
 			trans_dict['extra'], trans_dict['legend'])
 
-
+		#create the plot
 		trans_plot_class.make_plot()
+
+		#setup the plot
 		trans_plot_class.setup_plot()
 
 		print(i)
 
+	#adjust figure sizes
 	fig.subplots_adjust(left=0.12, top=0.92, bottom=0.1, wspace=0.3, hspace=0.3)
 
+	#if tight spacing, adjust subbplots to no wspace,hspace. Default is tight. 
 	if 'spacing' in pid['general'].keys():
 		if pid['general']['spacing'] == 'wide':
 			pass
@@ -778,23 +824,39 @@ def plot_main(pid):
 		fig.subplots_adjust(wspace=0.0, hspace=0.0)
 
 
+	#create list of plot types
 	plot_types = [pid['plot_info'][axis_string]['type']
 		for axis_string in pid['plot_info'].keys()]
 
+	#adjust fig for colorbars if ratio or waterfall plots are used. 
 	if 'ratio' in plot_types or 'waterfall' in plot_types:
 		fig.subplots_adjust(right=0.79)
 
-	#label for axis
+	#labels for figure
 	fig_label_fontsize = 20
 	if 'fig_label_fontsize' in pid['general'].keys():
 		fig_label_fontsize = float(pid['general']['fig_label_fontsize'])
 
-	fig.text(0.01, 0.51, r'%s'%(pid['general']['fig_y_label']),
-		rotation = 'vertical', va = 'center', fontsize = fig_label_fontsize)
+	if 'fig_x_label' in pid['general'].keys():
+		fig.text(0.01, 0.51, r'%s'%(pid['general']['fig_y_label']),
+			rotation = 'vertical', va = 'center', fontsize = fig_label_fontsize)
 
-	fig.text(0.45, 0.02, r'%s'%(pid['general']['fig_x_label']),
-		ha = 'center', fontsize = fig_label_fontsize)
+	if 'fig_y_label' in pid['general'].keys():
+		fig.text(0.45, 0.02, r'%s'%(pid['general']['fig_x_label']),
+			ha = 'center', fontsize = fig_label_fontsize)
+
+	fig_title_fontsize = 20
+	if 'fig_title_fontsize' in pid['general'].keys():
+		fig_title_fontsize = float(pid['general']['fig_title_fontsize'])
+
+	if 'fig_title' in pid['general'].keys():
+		fig.suptitle(0.45, 0.02, r'%s'%(pid['general']['fig_title']),
+			ha = 'center', fontsize = fig_label_fontsize)
+
+
 		
+
+	#save or show figure
 	if 'save_figure' in pid['general'].keys():
 		if pid['general']['save_figure'] == True:
 			plt.savefig(WORKING_DIRECTORY + '/' + 
@@ -810,6 +872,7 @@ if __name__ == '__main__':
 	"""
 	starter function to read in json and pass to plot_main function. 
 	"""
+	#read in json
 	plot_info_dict = json.load(open(sys.argv[1], 'r'),
 		object_pairs_hook=OrderedDict)
 	plot_main(plot_info_dict)
