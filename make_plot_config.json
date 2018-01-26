@@ -60,7 +60,9 @@
 			{"title": "Classic LISA vs. Proposed LISA", "title_fontsize": 18,  "xlabel": "test2 label", "ylabel": "testy label"},
 
 		"limits":
-			{"xlims": [2.0,5.0],"dx": 1.0}
+			{"xlims": [2.0,5.0],"dx": 1.0},
+		"extra":
+			{"contour_vals": [0.0,1e1,1e2,1e3,1e4,1e5,1e6]}
 		},
 
 	"2":{

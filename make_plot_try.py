@@ -78,6 +78,25 @@ class CreateSinglePlot:
 		self.limits_dict, self.label_dict, self.extra_dict, self.legend_dict = limits_dict, label_dict, extra_dict, legend_dict
 
 	def setup_plot(self):
+		"""
+		This method takes an axis and sets up plot limits and labels according to label_dict and limits_dict from CreateSinglePlot __init__.
+
+			limits_dict - dict containing axis limits and axes labels information.
+
+				limits_dict inputs/keys:
+					xlims, ylims - length 2 list of floats - min followed by max. default is log for x and linear for y. If log, the limits should be log of values.
+					dx, dy - float - x-change and y-change
+					xscale, yscale - string - scaling for axes. Either 'log' or 'lin'.
+
+			label_dict - dict containing label information for x labels, y labels, and title.
+
+				label_dict inputs/keys:
+					title - string - title for each plot
+					title_fontsize - float - fontsize for title_fontsize
+					xlabel, ylabel - string - x, y axis label
+					xlabel_fontsize, ylabel_fontsize - float - x,y axis label fontsize	
+
+		"""
 
 		xticks = np.arange(float(self.limits_dict['xlims'][0]), 
 			float(self.limits_dict['xlims'][1]) 
@@ -142,6 +161,9 @@ class CreateSinglePlot:
 		return
 
 	def interpolate_data(self):
+		"""
+		Method interpolates data if two data sets have different shapes. This method is mainly used on ratio plots to allow for direct comparison of snrs. However, functionality will be added for waterfall and horizon plts.  
+		"""
 
 		points = [np.shape(x_arr)[0]*np.shape(x_arr)[1]
 			for x_arr in self.xvals]
@@ -169,20 +191,37 @@ class CreateSinglePlot:
 
 
 class Waterfall(CreateSinglePlot):
+	"""
+	Waterfall is a subclass of CreateSinglePlot. Refer to CreateSinglePlot class docstring for input information. 
+
+	Waterfall creates an snr filled contour plot similar in style to those seen in the LISA proposal. Contours are displayed at snrs of 10, 20, 50, 100, 200, 500, 1000, and 3000 and above. If lower contours are needed, adjust contour_vals in extra_dict for the specific plot. 
+
+		Contour_vals needs to start with zero and end with a higher value than the max in the data. Contour_vals needs to be a list of max length 9 including zero and max value. 
+	"""
 
 
 	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={},
 		label_dict={}, extra_dict={}, legend_dict={}):
+		"""
+		Initializes Waterfall subclass. See CreateSinglePlot class for details.
+		"""
 
 		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals,
 			limits_dict, label_dict, extra_dict, legend_dict)
 
 	def make_plot(self):
+		"""
+		This methd creates the waterfall plot. 
+		"""
 
 		#sets levels of main contour plot
 		colors1 = ['None','darkblue', 'blue', 'deepskyblue', 'aqua',
 			'greenyellow', 'orange', 'red','darkred']
+
 		levels = np.array([0.,10,20,50,100,200,500,1000,3000,1e6])
+
+		if 'contour_vals' in self.extra_dict.keys():
+			levels = np.asarray(self.extra_dict['contour_vals'])
 		
 		#produce filled contour of SNR vs. z vs. Mtotal
 		sc=self.axis.contourf(self.xvals[0],self.yvals[0],self.zvals[0],
@@ -202,17 +241,24 @@ class Waterfall(CreateSinglePlot):
 
 class Ratio(CreateSinglePlot):
 	"""
-	Test docstring
+	Ratio is a subclass of CreateSinglePlot. Refer to CreateSinglePlot class docstring for input information. 
+
+	Ratio creates an filled contour plot comparing snrs from two different data sets. Typically, it is used to compare sensitivty curves and/or varying binary parameters. It takes the snr of the first dataset and divides it by the snr from the second dataset. The log10 of this ratio is ploted. Additionally, a loss/gain contour is plotted. Loss/gain contour is based on SNR_CUT but can be overridden with 'snr_contour_value' in extra_dict. A gain indicates the first dataset reaches the snr threshold while the second does not. A loss is the opposite.  
 	"""
 
 
 	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={},
 		label_dict={}, extra_dict={}, legend_dict={}):
-
+		"""
+		Initializes Ratio subclass. See CreateSinglePlot class for details.
+		"""
 		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals,
 			limits_dict, label_dict, extra_dict, legend_dict)
 
 	def make_plot(self):
+		"""
+		This methd creates the waterfall plot. 
+		"""
 
 		if len(self.xvals) != 2:
 			raise Exception("Length of vals not equal to 2. Ratio plots must have 2 inputs.")
@@ -253,13 +299,23 @@ class Ratio(CreateSinglePlot):
 		return
 
 	def find_difference_contour(self):
+		"""
+		This method finds the ratio contour and the loss gain contour values. Its inputs are the two datasets for comparison where the second is the control to compare against the first. 
+
+			The input data sets need to be the same shape. CreateSinglePlot.interpolate_data corrects for two datasets of different shape.
+			
+		"""
 
 		#set indices of loss,gained. Also set rid for when neither curve measures source. inds_check tells the ratio calculator not to control_zout if both SNRs are below 1
 		zout = self.zvals[0]
 		control_zout = self.zvals[1]
 
-		inds_gained = np.where((zout>=SNR_CUT) & (control_zout< SNR_CUT))
-		inds_lost = np.where((zout<SNR_CUT) & (control_zout>=SNR_CUT))
+		comparison_value = SNR_CUT
+		if 'snr_contour_value' in self.extra_dict.keys():
+			comparison_value = self.extra_dict['snr_contour_value']
+
+		inds_gained = np.where((zout>=comparison_value) & (control_zout< comparison_value))
+		inds_lost = np.where((zout<comparison_value) & (control_zout>=comparison_value))
 		inds_rid = np.where((zout<1.0) & (control_zout<1.0))
 		inds_check = np.where((zout.ravel()<1.0)
 			& (control_zout.ravel()<1.0))[0]
@@ -390,6 +446,9 @@ class PlotVals:
 	"""
 
 	def __init__(self, x_arr_list, y_arr_list, z_arr_list):
+		"""
+		Initializes PlotVals subclass.
+		"""
 
 		self.x_arr_list, self.y_arr_list, self.z_arr_list = x_arr_list, y_arr_list, z_arr_list
 
