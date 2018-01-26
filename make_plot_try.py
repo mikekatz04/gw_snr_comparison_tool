@@ -36,11 +36,11 @@ class CreateSinglePlot:
 		This is the base class for the subclasses designed for creating the plots.
 
 			Mandatory Inputs:
-				fig - Figure environment for the plots.
-				axis - Axis object representing specific plot.
-				xvals - list of x-value arrays for the plot.
-				yvals - list of y-value arrays for the plot.
-				zvals - list of z-value arrays for the plot.
+				fig - figure object - Figure environment for the plots.
+				axis - axes object - Axis object representing specific plot.
+				xvals - list of 2d arrays - list of x-value arrays for the plot.
+				yvals - list of 2d arrays - list of y-value arrays for the plot.
+				zvals - list of 2d arrays - list of z-value arrays for the plot.
 
 			Optional Inputs:
 				limits_dict - dict containing axis limits and axes labels information.
@@ -67,6 +67,7 @@ class CreateSinglePlot:
 				legend_dict - dict describing legend labels and properties. This is mainly used for horizon plots.
 
 					legend_dict inputs/keys given under horizon plot docstring. 
+
 		"""
 
 		self.fig = fig
@@ -191,20 +192,18 @@ class CreateSinglePlot:
 
 
 class Waterfall(CreateSinglePlot):
-	"""
-	Waterfall is a subclass of CreateSinglePlot. Refer to CreateSinglePlot class docstring for input information. 
-
-	Waterfall creates an snr filled contour plot similar in style to those seen in the LISA proposal. Contours are displayed at snrs of 10, 20, 50, 100, 200, 500, 1000, and 3000 and above. If lower contours are needed, adjust contour_vals in extra_dict for the specific plot. 
-
-		Contour_vals needs to start with zero and end with a higher value than the max in the data. Contour_vals needs to be a list of max length 9 including zero and max value. 
-	"""
 
 
 	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={},
 		label_dict={}, extra_dict={}, legend_dict={}):
 		"""
-		Initializes Waterfall subclass. See CreateSinglePlot class for details.
+		Waterfall is a subclass of CreateSinglePlot. Refer to CreateSinglePlot class docstring for input information. 
+
+		Waterfall creates an snr filled contour plot similar in style to those seen in the LISA proposal. Contours are displayed at snrs of 10, 20, 50, 100, 200, 500, 1000, and 3000 and above. If lower contours are needed, adjust contour_vals in extra_dict for the specific plot. 
+
+			Contour_vals needs to start with zero and end with a higher value than the max in the data. Contour_vals needs to be a list of max length 9 including zero and max value. 
 		"""
+
 
 		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals,
 			limits_dict, label_dict, extra_dict, legend_dict)
@@ -240,24 +239,21 @@ class Waterfall(CreateSinglePlot):
 
 
 class Ratio(CreateSinglePlot):
-	"""
-	Ratio is a subclass of CreateSinglePlot. Refer to CreateSinglePlot class docstring for input information. 
-
-	Ratio creates an filled contour plot comparing snrs from two different data sets. Typically, it is used to compare sensitivty curves and/or varying binary parameters. It takes the snr of the first dataset and divides it by the snr from the second dataset. The log10 of this ratio is ploted. Additionally, a loss/gain contour is plotted. Loss/gain contour is based on SNR_CUT but can be overridden with 'snr_contour_value' in extra_dict. A gain indicates the first dataset reaches the snr threshold while the second does not. A loss is the opposite.  
-	"""
-
+	
 
 	def __init__(self, fig, axis, xvals,yvals,zvals, limits_dict={},
 		label_dict={}, extra_dict={}, legend_dict={}):
 		"""
-		Initializes Ratio subclass. See CreateSinglePlot class for details.
+		Ratio is a subclass of CreateSinglePlot. Refer to CreateSinglePlot class docstring for input information. 
+
+		Ratio creates an filled contour plot comparing snrs from two different data sets. Typically, it is used to compare sensitivty curves and/or varying binary parameters. It takes the snr of the first dataset and divides it by the snr from the second dataset. The log10 of this ratio is ploted. Additionally, a loss/gain contour is plotted. Loss/gain contour is based on SNR_CUT but can be overridden with 'snr_contour_value' in extra_dict. A gain indicates the first dataset reaches the snr threshold while the second does not. A loss is the opposite.  
 		"""
 		CreateSinglePlot.__init__(self, fig, axis, xvals,yvals,zvals,
 			limits_dict, label_dict, extra_dict, legend_dict)
 
 	def make_plot(self):
 		"""
-		This methd creates the waterfall plot. 
+		This methd creates the ratio plot. 
 		"""
 
 		if len(self.xvals) != 2:
@@ -303,6 +299,8 @@ class Ratio(CreateSinglePlot):
 		This method finds the ratio contour and the loss gain contour values. Its inputs are the two datasets for comparison where the second is the control to compare against the first. 
 
 			The input data sets need to be the same shape. CreateSinglePlot.interpolate_data corrects for two datasets of different shape.
+
+			Returns: loss_gain_contour, ratio contour (diffout2)
 			
 		"""
 
@@ -385,7 +383,7 @@ class Horizon(CreateSinglePlot):
 
 	def make_plot(self):
 		"""
-		This method creats a horizon plot as desribed in the Horizon class docstring. The class contains an axis as a part of self. The horizon plot is added to this axis. 
+		This method adds a horizon plot as desribed in the Horizon class docstring. The class contains an axis as a part of self. The horizon plot is added to this axis. 
 		"""
 		#sets levels of main contour plot
 		colors1 = ['blue', 'green', 'red','purple', 'orange',
@@ -436,18 +434,16 @@ class Horizon(CreateSinglePlot):
 
 
 class PlotVals:
-	""" 
-	This class is designed to carry around the data for each plot as an attribute of self.
 
-		Inputs/Attributes:
-			x_arr_list: list of gridded, 2D datasets representing the x-values.
-			y_arr_list: list of gridded, 2D datasets representing the y-values.
-			z_arr_list: list of gridded, 2D datasets representing the z-values.
-	"""
 
 	def __init__(self, x_arr_list, y_arr_list, z_arr_list):
-		"""
-		Initializes PlotVals subclass.
+		""" 
+		This class is designed to carry around the data for each plot as an attribute of self.
+
+			Inputs/Attributes:
+				x_arr_list -list of 2D arrays - list of gridded, 2D datasets representing the x-values.
+				y_arr_list - list of 2d arrays - list of gridded, 2D datasets representing the y-values.
+				z_arr_list - list of 2d arrays - list of gridded, 2D datasets representing the z-values.
 		"""
 
 		self.x_arr_list, self.y_arr_list, self.z_arr_list = x_arr_list, y_arr_list, z_arr_list
@@ -457,6 +453,43 @@ class ReadInData:
 
 
 	def __init__(self, pid, file_dict, limits_dict={}):
+		"""
+		This class reads in data based on the pid and file_dict. The file_dict provides information about the files to read in. This information is transferred to the read in methods that work for .txt, .csv, and .hdf5. 
+
+			Mandatory Inputs:
+				pid - dict - plot_info_dict used in main code. It contains information for types of plots created and the general settings in the pid['general'] dict. 
+
+					pid inputs/keys:
+						see config file and README documentation. This dict contains everything for code.
+
+						x_column_label, y_column_label - string - general x and y column names in file_dict
+						xscale, yscale - string - 'log' or 'lin' representing general scale of data in x and y
+
+
+				file_dict - dict - contains info about the file to read in
+					file_dict inputs/keys:
+						Mandatory:
+						name - string - file name including path extension from WORKING_DIRECTORY.
+						label - string - name of column for the z values.
+
+						Optional:
+						x_column_label, y_column_label - string - x and y column names in file_dict
+
+			Optional Inputs:
+				limits_dict - dict - contains info on scaling of x and y
+					xscale, yscale - string - 'log' or 'lin' representing scale of data in x and y
+
+						
+
+
+			Optional Inputs:
+				limits_dict - dict containing axis limits and axes labels information.
+
+					limits_dict inputs/keys:
+						xlims, ylims - length 2 list of floats - min followed by max. default is log for x and linear for y. If log, the limits should be log of values.
+						dx, dy - float - x-change and y-change
+						xscale, yscale - string - scaling for axes. Either 'log' or 'lin'.
+		"""
 
 		self.file_name = file_dict['name']
 
@@ -506,6 +539,14 @@ class ReadInData:
 		self.z_append_value = self.zvals
 
 	def txt_read_in(self):
+		"""
+		Method for reading in text or csv files. This uses ascii class from astropy.io for flexible input. It is slower than numpy, but has greater flexibility with less input.
+
+			Inputs: 
+				file_name, x and y column names from self. 
+
+			Return: Add x,y,z values to self.
+		"""
 
 		data = ascii.read(WORKING_DIRECTORY + '/' + self.file_name)
 
@@ -519,6 +560,14 @@ class ReadInData:
 		return
 
 	def hdf5_read_in(self):
+		"""
+		Method for reading in hdf5 files. This uses ascii class from astropy.io for flexible input. It is slower than numpy, but has greater flexibility with less input.
+
+			Inputs: 
+				file_name, x and y column names from self. 
+
+			Return: Add x,y,z values to self.
+		"""
 
 		with hdf5.File(WORKING_DIRECTORY + '/' + self.file_name) as f:
 			data = f['data']
@@ -537,6 +586,28 @@ class ReadInData:
 
 
 def read_in_data(pid):
+	"""
+	Function to extract data from files according to pid. 
+
+		Inputs:
+			pid - dict - (Mandatory) dict containing all information for this code. 
+
+			pid inputs/keys:
+				plot_info - dict holding info specifically for the plots. This is converted into control_dict.
+
+					plot_info inputs/keys:
+						'limits' - dict - represents limits_dict
+
+						'indices' - list of ints - can add first set of z values from plot of index (int) to values for this plot. 
+
+				control - dict - containing file information for the control in raito plots.
+					control_dict inputs/keys:
+						name - string - file name
+
+						or
+
+						index - int - represents the index of a plot to compare to its first set of z values. 
+	"""
 
 
 	control_dict = pid['plot_info']
@@ -603,6 +674,10 @@ def read_in_data(pid):
 
 
 def plot_main(pid):
+
+	"""
+	Main function for creating these plots. Reads in plot info dict from json file. 
+	"""
 
 	global WORKING_DIRECTORY, SNR_CUT
 
@@ -732,7 +807,9 @@ def plot_main(pid):
 	return
 
 if __name__ == '__main__':
-
+	"""
+	starter function to read in json and pass to plot_main function. 
+	"""
 	plot_info_dict = json.load(open(sys.argv[1], 'r'),
 		object_pairs_hook=OrderedDict)
 	plot_main(plot_info_dict)
