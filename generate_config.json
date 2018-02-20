@@ -1,0 +1,81 @@
+{
+
+"general":
+	{
+	"signal_type": ["all", "ins", "mrg", "rd"],
+	"generation_type": "parallel",
+	"num_processors": 4,
+	"num_splits":40,
+	"add_WD_noise": "both"
+	},
+
+"output_info":
+	{
+	"output_file_name":"test_savetxt",
+	"output_file_type":"txt",
+	"delimiter":"\t"
+	},
+
+"input_info":
+	{
+	"sensitivity_curves": ["LISA_prop_curve.txt", "Classic_LISA.txt",  "LISA_prop_curve_early_break.txt",  "LISA_prop_curve_less_steep.txt", "Classic_LISA_prop_behavior.txt"],
+	"input_location":".",
+	"Galactic_background_file": "WDnoise.txt"
+	},
+
+"generate_info":
+	{
+	"xscale": "log",
+	"num_x": 10,
+	"x_low": 1e5,
+	"x_high": 1e7,
+	"xval_name": "total_mass",
+	"xval_unit": "SolarMasses",
+
+	"yscale": "log",
+	"num_y": 10,
+	"y_low": 0.001,
+	"y_high": 1.0,
+	"yval_name": "mass_ratio",
+	"yval_unit": "None",
+
+	"fixed_parameter_1": 1.0,
+	"par_1_name": "redshift",
+	"par_1_unit": "None",
+
+	"fixed_parameter_2": 0.65,
+	"par_2_name": "spin_1",
+	"par_2_unit": "None",
+
+	"fixed_parameter_3": 0.65,
+	"par_3_name": "spin_2",
+	"par_3_unit": "None",
+
+	"start_time": 1.0,
+	"end_time": 0.0,
+
+	"waveform_type": "PhenomD",
+
+	"hc_generation_type": "lal_generate",
+
+	"generation_base_parameters":
+		{
+		"fast_generate_Mbase": 1e2,
+		"fast_generate_qbase": 1e-1,
+		"fast_generate_zbase": 0.01,
+		"fast_generate_s1base": 0.99,
+		"fast_generate_s2base": 0.99,
+		"fast_generate_stbase": 1.0,
+		"fast_generate_etbase": 0.0
+		},
+
+	"snr_calculation_factors":
+		{
+		"averaging_factor": 0.692820323,
+		"snr_factor": 1.4142135624
+		}
+	}
+
+
+
+}

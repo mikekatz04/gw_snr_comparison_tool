@@ -328,7 +328,7 @@ def generate_contour_data(pid):
 	Sensecurves = pid['Sensitivity_curves']
 
 	#Sensitivity curve files labels
-	labels = pid['Sensitivity_curve_labels']
+	labels = [sc[0:-4] for sc in Sensecurves]
 	
 	#declare dict for noise curve functions
 	sensitivity_dict = OrderedDict()
