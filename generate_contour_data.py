@@ -6,6 +6,7 @@ import datetime
 import time
 from scipy.interpolate import interp1d, interp2d
 from astropy.cosmology import Planck13 as cosmo
+from astropy.io import ascii
 import lal
 import lalsimulation
 from scipy.integrate import quad
@@ -21,6 +22,8 @@ from collections import OrderedDict
 import h5py
 
 import json
+
+from multiprocessing import Pool
 
 Msun=1.989e30
 
@@ -49,24 +52,6 @@ def parallel_func(num_proc, binaries, hc_generation_type, sig_types, sensitivity
 
 	print(num_proc, 'end')
 	return snr
-	"""
-	if len(inds)!=0:
-		ind_start = inds[0]
-		hc_int = interp1d(f_changed, hc_changed, bounds_error = False, fill_value = 1e-30)
-
-		#compensate if ringdown starts before the starting point (which is wrong) 
-		if phases == True:
-			if ind_rd_start-1 < ind_start:
-				j = 0
-				for k in labels:
-					for nc in np.arange(num_cols):
-						SNR[i][j] = 1e-30
-						j+=1
-				i+=1
-				print(i)
-				continue
-
-	"""
 
 def hchar_try(m1,m2,redshift, s1, s2,st,et,waveform_type):
 	try:
@@ -231,8 +216,20 @@ class CalculateSignalClass:
 		return np.sqrt(quad(snr_integrand, f_in[0], f_in[-1])[0])*self.snr_factor
 
 class file_read_out:
-	def __init__(self, file_type, output_string, output_dict, num_x, num_y, xval_name, yval_name, par_1_name, par_2_name, par_3_name, units_dict={}, added_note=''):
-		self.file_type, self.output_string, self.output_dict, self.num_x, self.num_y, self.xval_name, self.yval_name, self.par_1_name, self.par_2_name, self.par_3_name, self.units_dict, self.added_note = file_type, output_string, output_dict, num_x, num_y, xval_name, yval_name, par_1_name, par_2_name, par_3_name, units_dict, added_note
+	def __init__(self, pid, file_type, output_string, output_dict, num_x, num_y, xval_name, yval_name, par_1_name, par_2_name, par_3_name):
+		self.pid = pid
+		self.file_type, self.output_string, self.output_dict, self.num_x, self.num_y, self.xval_name, self.yval_name, self.par_1_name, self.par_2_name, self.par_3_name = file_type, output_string, output_dict, num_x, num_y, xval_name, yval_name, par_1_name, par_2_name, par_3_name
+
+	def prep_output(self):
+		self.units_dict = {}
+		for key in self.pid['generate_info'].keys():
+			if key[-4::] == 'unit':
+				self.units_dict[key] = self.pid['generate_info'][key]
+
+		self.added_note = ''
+		if 'added_note' in self.pid['output_info'].keys():
+			self.added_note = self.pid['output_info']['added_note']
+		return
 
 	def hdf5_read_out(self):
 		with h5py.File(WORKING_DIRECTORY + '/' + self.output_string + '.' + self.file_type, 'w') as f:
@@ -302,177 +299,271 @@ class file_read_out:
 		np.savetxt(WORKING_DIRECTORY + '/' + self.output_string + '.' + self.file_type, data_out, delimiter = '\t',header = header, comments='')
 		return
 
-def generate_contour_data(pid):
-	#choose all phases or entire signal
-	#ADD FILES LIKE IN MAKE PLOT WITH SEPARATE DICTS
+class main_process:
+	def __init__(self, pid):
+		self.pid = pid
 
-	global WORKING_DIRECTORY
+		self.gid = pid['generate_info']
 
-	gid = pid['generate_info']
+		self.extra_dict = {}
+		#Galactic Background Noise --> need f and hn
+	
+		if pid['general']['add_wd_noise'] == 'True' or pid['general']['add_wd_noise'] == 'Both':
+			self.read_in_wd_noise()
 
-	if pid["general"]['generation_type'] == 'parallel':
-		from multiprocessing import Pool
+		#Sensitivity curve files
+		self.sensecurves = pid['input_info']['sensitivity_curves']
 
-	t_or_f_dict = {'True': True, 'False':False}
+		self.read_in_sensitivity_curves()
 
-	WORKING_DIRECTORY = pid['general']['WORKING_DIRECTORY']
+		self.waveform_type = ''
+		if 'waveform_type' in self.gid.keys():
+			self.waveform_type = self.gid['waveform_type']
 
-
-	#Galactic Background Noise --> need f and hn
-	if pid['general']['add_wd_noise'] == 'True' or pid['general']['add_wd_noise'] == 'Both':
-		data = np.genfromtxt(pid['input_info']['input_location'] + '/' + pid['input_info']['Galactic_background_file'], names = True)
+	def read_in_wd_noise(self):
+		data = ascii.read(self.pid['input_info']['input_location'] + '/' + self.pid['input_info']['Galactic_background_file'])
 
 		f_wd = data['f']
 		hn_wd =  data['Sn']*np.sqrt(data['f'])*np.sqrt(3./20.)
 
-		wd_noise = interp1d(f_wd, hn_wd, bounds_error=False, fill_value=1e-30)
+		self.wd_noise = interp1d(f_wd, hn_wd, bounds_error=False, fill_value=1e-30)
+		return
 
-	#Sensitivity curve files
-	Sensecurves = pid['input_info']['sensitivity_curves']
+	def read_in_sensitivity_curves(self):
+		#declare dict for noise curve functions
+		self.sensitivity_dict = OrderedDict()
+		self.labels = []
 
-	#Sensitivity curve files labels
-	labels = [sc[0:-4] for sc in Sensecurves]
-	
-	#declare dict for noise curve functions
-	sensitivity_dict = OrderedDict()
+		#read in Sensitvity data
+		for i, file_dict in enumerate(self.sensecurves):
+			data = ascii.read(self.pid['input_info']['input_location'] + '/' + file_dict['name'])
 
-	#read in Sensitvity data
-	for i, k in enumerate(Sensecurves):
-		data = np.genfromtxt(pid['input_info']['input_location'] + '/' + k, names=True)	
-		
-		f		 = np.asarray(data['f'])
-		#convert from SA PSD to NSA characteristic strain in noise
-		hn		 = np.asarray(data['Sn'])*np.sqrt(3./20.)*np.sqrt(f)
-	
-		#place interpolated functions into dict with second including WD
-		if pid['general']['add_wd_noise'] == 'True':
-			wd_up = (wd_noise(f)/hn)
-			wd_down = (hn/wd_noise(f))
-			sensitivity_dict[labels[i] + '_wd'] = interp1d(f, hn*wd_down+wd_noise(f)*wd_up, bounds_error=False, fill_value=1e30)
+			self.labels.append(file_dict['name'][0:-4])
+			
+			f_col_name = 'f'
+			if 'freq_column_label' in self.pid['input_info'].keys():
+				f_col_name = self.pid['input_info']['freq_column_label']
+			if 'freq_column_label' in file_dict.keys():
+				f_col_name = file_dict['freq_column_label']
 
-		elif pid['general']['add_wd_noise'] == 'Both':
-			wd_up = (wd_noise(f)/hn)
-			wd_down = (hn/wd_noise(f))
+			amp_col_name = 'f'
+			if 'amplitude_column_label' in self.pid['input_info'].keys():
+				amp_col_name = self.pid['input_info']['amplitude_column_label']
+			if 'amplitude_column_label' in file_dict.keys():
+				amp_col_name = file_dict['amplitude_column_label']
 
-			sensitivity_dict[labels[i] + '_wd'] = interp1d(f, hn*wd_down+wd_noise(f)*wd_up, bounds_error=False, fill_value=1e30)
-			sensitivity_dict[labels[i]] = interp1d(f, hn, bounds_error=False, fill_value=1e30)
+			f		 = np.asarray(data[f_col_name])
+			#convert from SA PSD to NSA characteristic strain in noise
+			amp		 = np.asarray(data[amp_col_name])
+
+			if file_dict['type'] == 'PSD':
+				amp = np.sqrt(amp)
+
+			if file_dict['type'] == 'PSD' or file_dict['type'] != 'ASD':
+				amp = np.sqrt(f)
+
+
+			averaging_factor = np.sqrt(3./20.)
+			if 'sensitivity_averaging_factor' in self.pid['input_info'].keys():
+				averaging_factor = self.pid['input_info']['sensitivity_averaging_factor']
+			if 'sensitivity_averaging_factor' in file_dict.keys():
+				averaging_factor = file_dict['sensitivity_averaging_factor']
+
+			hn = amp*averaging_factor
+
+			#place interpolated functions into dict with second including WD
+			if self.pid['general']['add_wd_noise'] == 'True' or self.pid['general']['add_wd_noise'] == 'Both':
+				wd_up = (self.wd_noise(f)/hn >= 1.0)
+				wd_down = (hn/self.wd_noise(f) < 1.0)
+
+				self.sensitivity_dict[self.labels[i] + '_wd'] = interp1d(f, hn*wd_down+wd_noise(f)*wd_up, bounds_error=False, fill_value=1e30)
+
+				if self.pid['general']['add_wd_noise'] == 'Both':
+					self.sensitivity_dict[self.labels[i]] = interp1d(f, hn, bounds_error=False, fill_value=1e30)
+
+			else:
+				self.sensitivity_dict[self.labels[i]] = interp1d(f, hn, bounds_error=False, fill_value=1e30)
+
+		return
+
+	def set_parameters(self):
+		#dimensions of generation
+		self.num_x = int(self.gid['num_x'])
+		self.num_y = int(self.gid['num_y'])
+
+		#declare 1D arrays of both paramters
+		if self.gid['xscale'] == 'lin':
+			self.xvals = np.logspace(np.log10(float(self.gid['x_low'])),np.log10(float(self.gid['x_high'])), self.num_x)
 
 		else:
-			sensitivity_dict[labels[i]] = interp1d(f, hn, bounds_error=False, fill_value=1e30)
+			self.xvals = np.linspace(float(self.gid['x_low']),float(self.gid['x_high']), self.num_x)
 
-	#dimensions of generation
-	num_x = int(gid['num_x'])
-	num_y = int(gid['num_y'])
+		if self.gid['yscale'] == 'lin':
+			self.yvals = np.logspace(np.log10(float(self.gid['y_low'])),np.log10(float(self.gid['y_high'])), self.num_y)
 
-	#declare 1D arrays of both paramters
-	xvals = np.logspace(np.log10(float(gid['x_low'])),np.log10(float(gid['x_high'])), num_x)
-	yvals = np.logspace(np.log10(float(gid['y_low'])),np.log10(float(gid['y_high'])), num_y)
+		else:
+			self.yvals = np.logspace(float(self.gid['y_low']),float(self.gid['y_high']), self.num_y)
+		#Additional Parameters
 
-	#Additional Parameters
+		#mass ratio entry (b is for base, but mass ratio should not change becuase it changes the nature of the waveform)
+		par_1 = float(self.gid['fixed_parameter_1'])
+		par_2 = float(self.gid['fixed_parameter_2'])
+		par_3 = float(self.gid['fixed_parameter_3'])
 
-	#mass ratio entry (b is for base, but mass ratio should not change becuase it changes the nature of the waveform)
-	par_1 = float(gid['fixed_parameter_1'])
-	par_2 = float(gid['fixed_parameter_2'])
-	par_3 = float(gid['fixed_parameter_3'])
+		self.xvals, self.yvals, par_1, par_2, par_3 = np.meshgrid(self.xvals, self.yvals, np.array([par_1]), np.array([par_2]), np.array([par_3]))
 
-	xvals, yvals, par_1, par_2, par_3 = np.meshgrid(xvals, yvals, np.array([par_1]), np.array([par_2]), np.array([par_3]))
+		self.xvals, self.yvals, par_1, par_2, par_3 = self.xvals.ravel(),self.yvals.ravel(), par_1.ravel(), par_2.ravel(), par_3.ravel()
 
-	xvals, yvals, par_1, par_2, par_3 = xvals.ravel(), yvals.ravel(), par_1.ravel(), par_2.ravel(), par_3.ravel()
-
-	input_dict = {gid['xval_name']:xvals, gid['yval_name']:yvals, gid['par_1_name']:par_1, gid['par_2_name']:par_2, gid['par_3_name']:par_3, 'start_time': float(gid['start_time']), 'end_time':float(gid['end_time'])}
-
-	extra_dict={}
-	#b -> base --> these values with be used within scaling laws to produce output waveforms
-	if gid['hc_generation_type'] == 'fast_generate':
-		M_b = float(gid['generation_base_parameters']['fast_generate_Mbase'])
-		q_b = float(gid['generation_base_parameters']['fast_generate_qbase'])
-		z_b = float(gid['generation_base_parameters']['fast_generate_qbase'])
-		s1_b = float(gid['generation_base_parameters']['fast_generate_s1base'])
-		s2_b = float(gid['generation_base_parameters']['fast_generate_s2base'])
-		start_time_b = float(gid['generation_base_parameters']['fast_generate_stbase'])
-		end_time_b = float(gid['generation_base_parameters']['fast_generate_etbase'])
-		m1 =  M_b*q_b/(1.0+q_b)
-		m2 = M_b/(1.0+q_b)
-		waveform_type = gid['waveform_type']
+		self.input_dict = {self.gid['xval_name']:self.xvals, self.gid['yval_name']:self.yvals, self.gid['par_1_name']:par_1, self.gid['par_2_name']:par_2, self.gid['par_3_name']:par_3, 'start_time': float(self.gid['start_time']), 'end_time':float(self.gid['end_time'])}
+		return
 
 
+	def read_in_base_waveform(self):
+
+		self.define_base_parameters_for_fast_generate()
 		#generate with lalsim
 		if gid['waveform_generator'] == 'lalsimulation':
-			f_obs, hc_obs = hchar_try(m1,m2,z_b, s1_b, s2_b,start_time_b, end_time_b,waveform_type)
+			self.lal_sim_waveform_generate()
 
 		#premade waveform
 		else:
-			data = np.genfromtxt(pid['input_info']['input_location'] + '/' + gid['waveform_generator'], names=True)
-			f_obs = data['f']
-			hc_obs = data['hc']
-
+			self.file_read_in_for_base()
 
 		#create interpolation function to define frequency points
-		find_hc_obs = interp1d(f_obs,hc_obs, bounds_error = False, fill_value = 'extrapolate')
+		find_hc_obs = interp1d(self.f_obs, self.hc_obs, bounds_error = False, fill_value = 'extrapolate')
 
 		#define own frequency array (allows you to control length)
-		if 'freq_length' in gid.keys():
-			freq_len = int(gid['freq_length'])
-		else:
-			freq_len = 10000
+		freq_len = 10000
+		if 'freq_length' in self.gid.keys():
+			freq_len = int(self.gid['freq_length'])
 
-		f_obs = np.logspace(np.log10(f_obs[0]), np.log10(f_obs[-1]), freq_len)
-		hc_obs = find_hc_obs(f_obs)
+		self.f_obs = np.logspace(np.log10(f_obs[0]), np.log10(f_obs[-1]), freq_len)
+		self.hc_obs = find_hc_obs(f_obs)
 
 		#establish source frame frequency for scaling laws
-		f_s1 = f_obs*(1+z_b)
+		self.f_s1 = self.f_obs*(1+self.z_b)
 
 		#establish dimensionless quantity of Mf to adjust frequencies from base
-		Mf = f_s1*M_b
+		self.Mf = self.f_s1*self.M_b
 
-		extra_dict = {'M_b':M_b, 'z_b':z_b, 'f_obs':f_obs, 'hc_obs':hc_obs, 'f_s1':f_s1, 'Mf':Mf}
+		self.extra_dict['M_b'] = self.M_b
+		self.extra_dict['z_b'] = self.z_b
+		self.extra_dict['f_obs'] = self.f_obs
+		self.extra_dict['hc_obs'] = self.hc_obs
+		self.extra_dict['f_s1'] = self.f_s1
+		self.extra_dict['Mf'] = self.Mf
 
-	extra_dict['averaging_factor'] = float(gid['snr_calculation_factors']['averaging_factor'])
-	extra_dict['snr_factor'] = float(gid['snr_calculation_factors']['snr_factor'])
+		return
 
-	waveform_type = ''
-	if 'waveform_type' in gid.keys():
-		waveform_type = gid['waveform_type']
+	def define_base_parameters_for_fast_generate(self):
+		self.M_b = float(self.gid['generation_base_parameters']['fast_generate_Mbase'])
+		self.q_b = float(self.gid['generation_base_parameters']['fast_generate_qbase'])
+		self.z_b = float(self.gid['generation_base_parameters']['fast_generate_qbase'])
+		self.s1_b = float(self.gid['generation_base_parameters']['fast_generate_s1base'])
+		self.s2_b = float(self.gid['generation_base_parameters']['fast_generate_s2base'])
+		self.start_time_b = float(self.gid['generation_base_parameters']['fast_generate_stbase'])
+		self.end_time_b = float(self.gid['generation_base_parameters']['fast_generate_etbase'])
+		self.m1 =  M_b*q_b/(1.0+q_b)
+		self.m2 = M_b/(1.0+q_b)
+		self.waveform_type = self.gid['waveform_type']
 
-	find_all = [CalculateSignalClass(input_dict['total_mass'][j], input_dict['mass_ratio'][j], input_dict['redshift'][j], input_dict['spin_1'][j], input_dict['spin_2'][j], input_dict['start_time'], input_dict['end_time'], waveform_type, extra_dict) for j in range(len(xvals))]
+		return
 
-	st = time.time()
-	if pid['general']['generation_type'] == 'parallel':
+
+	def lal_sim_waveform_generate(self):
+		self.f_obs, self.hc_obs = hchar_try(self.m1, self.m2, self.z_b, self.s1_b, self.s2_b, self.start_time_b, self.end_time_b, self.waveform_type)
+		return
+
+	def file_read_in_for_base(self):
+		data = ascii.read(self.pid['input_info']['input_location'] + '/' + self.gid['waveform_generator'])
+		self.f_obs = data['f']
+		self.hc_obs = data['hc']
+
+		return
+
+	def add_averaging_factors(self):
+		if 'snr_calculation_factors' in self.gid.keys():
+			if 'averaging_factor' in self.gid['snr_calculation_factors'].keys():
+				self.extra_dict['averaging_factor'] = float(self.gid['snr_calculation_factors']['averaging_factor'])
+
+			if 'snr_factor' in self.gid['snr_calculation_factors'].keys():
+				self.extra_dict['snr_factor'] = float(self.gid['snr_calculation_factors']['snr_factor'])
+
+		return
+
+	def prep_find_list(self):
+		self.find_all = [CalculateSignalClass(self.input_dict['total_mass'][j], self.input_dict['mass_ratio'][j], self.input_dict['redshift'][j], self.input_dict['spin_1'][j], self.input_dict['spin_2'][j], self.input_dict['start_time'], self.input_dict['end_time'], self.waveform_type, self.extra_dict) for j in range(len(self.xvals))]
+
+	def prep_parallel(self):
+		st = time.time()
 		num_processors = 4
 		num_splits = 100
 
-		num_splits = int(pid['general']['num_splits'])
-		num_processors = int(pid['general']['num_processors'])
+		num_splits = int(self.pid['general']['num_splits'])
+		self.num_processors = int(self.pid['general']['num_processors'])
 
 		#set up inputs for each processor
 		#based on num_splits which indicates max number of boxes per processor
-		split_val = int(np.ceil(len(find_all)/num_splits))
+		split_val = int(np.ceil(len(self.find_all)/num_splits))
 
 		split_inds = [num_splits*i for i in np.arange(1,split_val)]
 
-		find_split = np.split(find_all,split_inds)
+		find_split = np.split(self.find_all,split_inds)
 
 		#start time ticker
 
-		args = []
+		self.args = []
 		for i, find_part in enumerate(find_split):
-			args.append((i, find_part, gid['hc_generation_type'],  pid['general']['signal_type'], sensitivity_dict))
-		
+			self.args.append((i, find_part, self.gid['hc_generation_type'],  self.pid['general']['signal_type'], self.sensitivity_dict))
+		return
+
+	def run_parallel(self):
 		results = []
-		with Pool(num_processors) as pool:
+		with Pool(self.num_processors) as pool:
 			print('start pool\n')
-			results = [pool.apply_async(parallel_func, arg) for arg in args]
+			results = [pool.apply_async(parallel_func, arg) for arg in self.args]
 
 			out = [r.get() for r in results]
 
-		final_dict = OrderedDict()
-		for sc in sensitivity_dict.keys():
-			for sig_type in pid['general']['signal_type']:
-				final_dict[sc + '_' + sig_type] = np.concatenate([r[sc + '_' + sig_type] for r in out])
+		self.final_dict = OrderedDict()
+		for sc in self.sensitivity_dict.keys():
+			for sig_type in self.pid['general']['signal_type']:
+				self.final_dict[sc + '_' + sig_type] = np.concatenate([r[sc + '_' + sig_type] for r in out])
+
+		return
+
+	def run_single(self):
+		self.final_dict = parallel_func(0, self.find_all, self.gid['hc_generation_type'], self.pid['general']['signal_type'], self.sensitivity_dict)
+		return
+
+
+def generate_contour_data(pid):
+	#choose all phases or entire signal
+	#ADD FILES LIKE IN MAKE PLOT WITH SEPARATE DICTS
+
+	begin_time = time.time()
+	global WORKING_DIRECTORY
+
+	gid = pid['generate_info']
+
+	WORKING_DIRECTORY = pid['general']['WORKING_DIRECTORY']
+
+	running_process = main_process(pid)
+	running_process.set_parameters()
+
+	#b -> base --> these values with be used within scaling laws to produce output waveforms
+	if gid['hc_generation_type'] == 'fast_generate':
+		running_process.read_in_base_waveform()
+
+	running_process.prep_find_list()
+	if pid['general']['generation_type'] == 'parallel':
+		running_process.prep_parallel()
+		running_process.run_parallel()
 
 	else:
-		final_dict = parallel_func(0, find_all, gid['hc_generation_type'], pid['general']['signal_type'], sensitivity_dict)
+		running_process.run_single()
 
+	"""
 	trans_dict = OrderedDict()
 
 	trans_dict['x'], trans_dict['y'] = xvals, yvals
@@ -482,29 +573,17 @@ def generate_contour_data(pid):
 		final_dict[key] = None
 
 	final_dict = trans_dict
+	"""
+	file_out = file_read_out(pid, pid['output_info']['output_file_type'], pid['output_info']['output_file_name'], running_process.final_dict, running_process.num_x, running_process.num_y, gid['xval_name'], gid['yval_name'], gid['par_1_name'], gid['par_2_name'], gid['par_3_name'])
 
-	#set column number based on phases or not (2 for each w/ and w/o GB)
-
-	#create header for data_file
-
-	units_dict = {}
-	for key in gid.keys():
-		if key[-4::] == 'unit':
-			units_dict[key] = gid[key]
-
-
-
-
-	added_note = ''
-	if 'added_note' in gid.keys():
-		for a_n in gid[added_note]:
-			added_note += a_n + ' '
-	file_out = file_read_out(pid['output_info']['output_file_type'], pid['output_info']['output_file_name'], final_dict, num_x, num_y, gid['xval_name'], gid['yval_name'], gid['par_1_name'], gid['par_2_name'], gid['par_3_name'], units_dict, added_note)
+	file_out.prep_output()
 
 	getattr(file_out, pid['output_info']['output_file_type'] + '_read_out')()
 
+	#create header for data_file
 
-	print(time.time()-st)
+
+	print(time.time()-begin_time)
 
 if __name__ == '__main__':
 	plot_info_dict = json.load(open(sys.argv[1], 'r'),

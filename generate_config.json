@@ -14,13 +14,24 @@
 	{
 	"output_file_name":"test_savetxt",
 	"output_file_type":"txt",
-	"delimiter":"\t"
+	"delimiter":"\t",
+	"added_note": "test added note"
 	},
 
 
 "input_info":
 	{
-	"sensitivity_curves": ["LISA_prop_curve.txt", "Classic_LISA.txt",  "LISA_prop_curve_early_break.txt",  "LISA_prop_curve_less_steep.txt", "Classic_LISA_prop_behavior.txt"],
+	"freq_column_label": "f",
+	"amplitude_column_label": "Sn", 
+	"sensitivity_curves": 
+		[
+		{"name":"LISA_prop_curve.txt", "type":"ASD", "freq_column_label": "f", "amplitude_column_label": "Sn"}, 
+		{"name":"Classic_LISA.txt", "type":"ASD", "freq_column_label": "f", "amplitude_column_label": "Sn"}, 
+		{"name":"LISA_prop_curve_early_break.txt", "type":"ASD", "freq_column_label": "f", "amplitude_column_label": "Sn"}, 
+		{"name":"LISA_prop_curve_less_steep.txt", "type":"ASD", "freq_column_label": "f", "amplitude_column_label": "Sn"}, 
+		{"name":"Classic_LISA_prop_behavior.txt", "type":"ASD", "freq_column_label": "f", "amplitude_column_label": "Sn", "sensitivity_averaging_factor": 0.3872983346} 
+		],
+	"sensitivity_averaging_factor":0.3872983346,
 	"input_location":".",
 	"Galactic_background_file": "WDnoise.txt"
 	},
