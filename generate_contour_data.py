@@ -20,6 +20,8 @@ from collections import OrderedDict
 
 import h5py
 
+import json
+
 Msun=1.989e30
 
 
@@ -302,22 +304,23 @@ class file_read_out:
 
 def generate_contour_data(pid):
 	#choose all phases or entire signal
+	#ADD FILES LIKE IN MAKE PLOT WITH SEPARATE DICTS
 
 	global WORKING_DIRECTORY
 
-	if pid['generation_type'][0] == 'parallel':
+	gid = pid['generate_info']
+
+	if pid["general"]['generation_type'] == 'parallel':
 		from multiprocessing import Pool
 
 	t_or_f_dict = {'True': True, 'False':False}
 
-	WORKING_DIRECTORY = pid['WORKING_DIRECTORY'][0]
+	WORKING_DIRECTORY = pid['general']['WORKING_DIRECTORY']
 
-	#string for output data file
-	out_string = pid['generation_output_string'][0]
 
 	#Galactic Background Noise --> need f and hn
-	if pid['add_wd_noise'][0] == 'True' or pid['add_wd_noise'][0] == 'Both':
-		data = np.genfromtxt(WORKING_DIRECTORY + '/' + pid['Galactic_background_file'][0], names = True)
+	if pid['general']['add_wd_noise'] == 'True' or pid['general']['add_wd_noise'] == 'Both':
+		data = np.genfromtxt(pid['input_info']['input_location'] + '/' + pid['input_info']['Galactic_background_file'], names = True)
 
 		f_wd = data['f']
 		hn_wd =  data['Sn']*np.sqrt(data['f'])*np.sqrt(3./20.)
@@ -325,7 +328,7 @@ def generate_contour_data(pid):
 		wd_noise = interp1d(f_wd, hn_wd, bounds_error=False, fill_value=1e-30)
 
 	#Sensitivity curve files
-	Sensecurves = pid['Sensitivity_curves']
+	Sensecurves = pid['input_info']['sensitivity_curves']
 
 	#Sensitivity curve files labels
 	labels = [sc[0:-4] for sc in Sensecurves]
@@ -335,19 +338,19 @@ def generate_contour_data(pid):
 
 	#read in Sensitvity data
 	for i, k in enumerate(Sensecurves):
-		data = np.genfromtxt(WORKING_DIRECTORY + '/' + k, names=True)	
+		data = np.genfromtxt(pid['input_info']['input_location'] + '/' + k, names=True)	
 		
 		f		 = np.asarray(data['f'])
 		#convert from SA PSD to NSA characteristic strain in noise
 		hn		 = np.asarray(data['Sn'])*np.sqrt(3./20.)*np.sqrt(f)
 	
 		#place interpolated functions into dict with second including WD
-		if pid['add_wd_noise'][0] == 'True':
+		if pid['general']['add_wd_noise'] == 'True':
 			wd_up = (wd_noise(f)/hn)
 			wd_down = (hn/wd_noise(f))
 			sensitivity_dict[labels[i] + '_wd'] = interp1d(f, hn*wd_down+wd_noise(f)*wd_up, bounds_error=False, fill_value=1e30)
 
-		elif pid['add_wd_noise'][0] == 'Both':
+		elif pid['general']['add_wd_noise'] == 'Both':
 			wd_up = (wd_noise(f)/hn)
 			wd_down = (hn/wd_noise(f))
 
@@ -358,48 +361,48 @@ def generate_contour_data(pid):
 			sensitivity_dict[labels[i]] = interp1d(f, hn, bounds_error=False, fill_value=1e30)
 
 	#dimensions of generation
-	num_x = int(pid['num_x'][0])
-	num_y = int(pid['num_y'][0])
+	num_x = int(gid['num_x'])
+	num_y = int(gid['num_y'])
 
 	#declare 1D arrays of both paramters
-	xvals = np.logspace(np.log10(float(pid['x_low'][0])),np.log10(float(pid['x_high'][0])), num_x)
-	yvals = np.logspace(np.log10(float(pid['y_low'][0])),np.log10(float(pid['y_high'][0])), num_y)
+	xvals = np.logspace(np.log10(float(gid['x_low'])),np.log10(float(gid['x_high'])), num_x)
+	yvals = np.logspace(np.log10(float(gid['y_low'])),np.log10(float(gid['y_high'])), num_y)
 
 	#Additional Parameters
 
 	#mass ratio entry (b is for base, but mass ratio should not change becuase it changes the nature of the waveform)
-	par_1 = float(pid['fixed_parameter_1'][0])
-	par_2 = float(pid['fixed_parameter_2'][0])
-	par_3 = float(pid['fixed_parameter_3'][0])
+	par_1 = float(gid['fixed_parameter_1'])
+	par_2 = float(gid['fixed_parameter_2'])
+	par_3 = float(gid['fixed_parameter_3'])
 
 	xvals, yvals, par_1, par_2, par_3 = np.meshgrid(xvals, yvals, np.array([par_1]), np.array([par_2]), np.array([par_3]))
 
 	xvals, yvals, par_1, par_2, par_3 = xvals.ravel(), yvals.ravel(), par_1.ravel(), par_2.ravel(), par_3.ravel()
 
-	input_dict = {pid['xval_name'][0]:xvals, pid['yval_name'][0]:yvals, pid['par_1_name'][0]:par_1, pid['par_2_name'][0]:par_2, pid['par_3_name'][0]:par_3, 'start_time': float(pid['start_time'][0]), 'end_time':float(pid['end_time'][0])}
+	input_dict = {gid['xval_name']:xvals, gid['yval_name']:yvals, gid['par_1_name']:par_1, gid['par_2_name']:par_2, gid['par_3_name']:par_3, 'start_time': float(gid['start_time']), 'end_time':float(gid['end_time'])}
 
 	extra_dict={}
 	#b -> base --> these values with be used within scaling laws to produce output waveforms
-	if pid['hc_generation_type'][0] == 'fast_generate':
-		M_b = float(pid['fast_generate_Mbase'][0])
-		q_b = float(pid['fast_generate_qbase'][0])
-		z_b = float(pid['fast_generate_qbase'][0])
-		s1_b = float(pid['fast_generate_s1base'][0])
-		s2_b = float(pid['fast_generate_s2base'][0])
-		start_time_b = float(pid['fast_generate_stbase'][0])
-		end_time_b = float(pid['fast_generate_etbase'][0])
+	if gid['hc_generation_type'] == 'fast_generate':
+		M_b = float(gid['generation_base_parameters']['fast_generate_Mbase'])
+		q_b = float(gid['generation_base_parameters']['fast_generate_qbase'])
+		z_b = float(gid['generation_base_parameters']['fast_generate_qbase'])
+		s1_b = float(gid['generation_base_parameters']['fast_generate_s1base'])
+		s2_b = float(gid['generation_base_parameters']['fast_generate_s2base'])
+		start_time_b = float(gid['generation_base_parameters']['fast_generate_stbase'])
+		end_time_b = float(gid['generation_base_parameters']['fast_generate_etbase'])
 		m1 =  M_b*q_b/(1.0+q_b)
 		m2 = M_b/(1.0+q_b)
-		waveform_type = pid['waveform_type'][0]
+		waveform_type = gid['waveform_type']
 
 
 		#generate with lalsim
-		if pid['waveform_generator'][0] == 'lalsimulation':
+		if gid['waveform_generator'] == 'lalsimulation':
 			f_obs, hc_obs = hchar_try(m1,m2,z_b, s1_b, s2_b,start_time_b, end_time_b,waveform_type)
 
 		#premade waveform
 		else:
-			data = np.genfromtxt(WORKING_DIRECTORY + '/' + pid['waveform_generator'][0], names=True)
+			data = np.genfromtxt(pid['input_info']['input_location'] + '/' + gid['waveform_generator'], names=True)
 			f_obs = data['f']
 			hc_obs = data['hc']
 
@@ -408,8 +411,8 @@ def generate_contour_data(pid):
 		find_hc_obs = interp1d(f_obs,hc_obs, bounds_error = False, fill_value = 'extrapolate')
 
 		#define own frequency array (allows you to control length)
-		if 'freq_length' in pid.keys():
-			freq_len = int(pid['freq_length'][0])
+		if 'freq_length' in gid.keys():
+			freq_len = int(gid['freq_length'])
 		else:
 			freq_len = 10000
 
@@ -424,22 +427,22 @@ def generate_contour_data(pid):
 
 		extra_dict = {'M_b':M_b, 'z_b':z_b, 'f_obs':f_obs, 'hc_obs':hc_obs, 'f_s1':f_s1, 'Mf':Mf}
 
-	extra_dict['averaging_factor'] = float(pid['averaging_factor'][0])
-	extra_dict['snr_factor'] = float(pid['snr_factor'][0])
+	extra_dict['averaging_factor'] = float(gid['snr_calculation_factors']['averaging_factor'])
+	extra_dict['snr_factor'] = float(gid['snr_calculation_factors']['snr_factor'])
 
 	waveform_type = ''
-	if 'waveform_type' in pid.keys():
-		waveform_type = pid['waveform_type'][0]
+	if 'waveform_type' in gid.keys():
+		waveform_type = gid['waveform_type']
 
-	find_all = [CalculateSignalClass(input_dict['total_mass'][j], input_dict['mass_ratio'][j], input_dict['redshift'][j], input_dict['spin_1'][j], input_dict['spin_2'][j], input_dict['start_time'], input_dict['end_time'], pid['waveform_type'][0], extra_dict) for j in range(len(xvals))]
+	find_all = [CalculateSignalClass(input_dict['total_mass'][j], input_dict['mass_ratio'][j], input_dict['redshift'][j], input_dict['spin_1'][j], input_dict['spin_2'][j], input_dict['start_time'], input_dict['end_time'], waveform_type, extra_dict) for j in range(len(xvals))]
 
 	st = time.time()
-	if pid['generation_type'][0] == 'parallel':
+	if pid['general']['generation_type'] == 'parallel':
 		num_processors = 4
 		num_splits = 100
 
-		num_splits = int(pid['num_splits'][0])
-		num_processors = int(pid['num_processors'][0])
+		num_splits = int(pid['general']['num_splits'])
+		num_processors = int(pid['general']['num_processors'])
 
 		#set up inputs for each processor
 		#based on num_splits which indicates max number of boxes per processor
@@ -453,7 +456,7 @@ def generate_contour_data(pid):
 
 		args = []
 		for i, find_part in enumerate(find_split):
-			args.append((i, find_part, pid['hc_generation_type'][0],  pid['signal_type'], sensitivity_dict))
+			args.append((i, find_part, gid['hc_generation_type'],  pid['general']['signal_type'], sensitivity_dict))
 		
 		results = []
 		with Pool(num_processors) as pool:
@@ -464,11 +467,11 @@ def generate_contour_data(pid):
 
 		final_dict = OrderedDict()
 		for sc in sensitivity_dict.keys():
-			for sig_type in pid['signal_type']:
+			for sig_type in pid['general']['signal_type']:
 				final_dict[sc + '_' + sig_type] = np.concatenate([r[sc + '_' + sig_type] for r in out])
 
 	else:
-		final_dict = parallel_func(0, find_all, pid['hc_generation_type'][0], pid['signal_type'], sensitivity_dict)
+		final_dict = parallel_func(0, find_all, gid['hc_generation_type'], pid['general']['signal_type'], sensitivity_dict)
 
 	trans_dict = OrderedDict()
 
@@ -480,57 +483,32 @@ def generate_contour_data(pid):
 
 	final_dict = trans_dict
 
-	"""
-	if phases == True:
-		#determine merger frequency in the source frame of the base --> based on 1PN order
-		mrgr_frq_s = 1.0/(6.**(3./2.)*ct.pi*(m1+m2)*Msun*ct.G/(ct.c**3.))
-
-		#set inspiral end
-		ins_end = np.where(f_s1<=mrgr_frq_s)[0][-1]
-
-		#set start of ringdown
-		if 'ringdown_start_freq' in pid.keys():
-			ind_rd_start = np.where(f_s1>= float(pid['ringdown_start_freq'][0]))[0][0]
-		else:
-			for e in np.arange(1,len(f_s1)-1):
-				if hc_obs[e-1]< hc_obs[e] and hc_obs[e+1]<hc_obs[e]:
-					ind_rd_start = np.where(f_s1 >= f_s1[e])[0][0]
-					break
-	"""
 	#set column number based on phases or not (2 for each w/ and w/o GB)
 
 	#create header for data_file
 
 	units_dict = {}
-	for key in pid.keys():
+	for key in gid.keys():
 		if key[-4::] == 'unit':
-			units_dict[key] = pid[key][0]
+			units_dict[key] = gid[key]
 
 
 
 
 	added_note = ''
-	if 'added_note' in pid.keys():
-		for a_n in pid[added_note]:
+	if 'added_note' in gid.keys():
+		for a_n in gid[added_note]:
 			added_note += a_n + ' '
-	file_out = file_read_out(pid['output_file_type'][0], pid['output_string'][0], final_dict, num_x, num_y, pid['xval_name'][0], pid['yval_name'][0], pid['par_1_name'][0], pid['par_2_name'][0], pid['par_3_name'][0], units_dict, added_note)
+	file_out = file_read_out(pid['output_info']['output_file_type'], pid['output_info']['output_file_name'], final_dict, num_x, num_y, gid['xval_name'], gid['yval_name'], gid['par_1_name'], gid['par_2_name'], gid['par_3_name'], units_dict, added_note)
 
-	getattr(file_out, pid['output_file_type'][0] + '_read_out')()
+	getattr(file_out, pid['output_info']['output_file_type'] + '_read_out')()
 
 
 	print(time.time()-st)
 
 if __name__ == '__main__':
-	f = open(sys.argv[1], 'r')
-	lines = f.readlines()
-	lines = [line for line in lines if line[0]!= '#']
-	lines = [line for line in lines if line[0]!= '\n']
-
-	plot_info_dict = OrderedDict()
-	for line in lines:
-		if ':' in line:
-			plot_info_dict[line.split()[0][0:-1]] = line.split()[1::]
-
+	plot_info_dict = json.load(open(sys.argv[1], 'r'),
+		object_pairs_hook=OrderedDict)
 
 	generate_contour_data(plot_info_dict)
 				

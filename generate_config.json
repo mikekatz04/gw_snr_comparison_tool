@@ -2,11 +2,12 @@
 
 "general":
 	{
+	"WORKING_DIRECTORY": ".",
 	"signal_type": ["all", "ins", "mrg", "rd"],
 	"generation_type": "parallel",
 	"num_processors": 4,
 	"num_splits":40,
-	"add_WD_noise": "both"
+	"add_wd_noise": "both"
 	},
 
 "output_info":
@@ -15,6 +16,7 @@
 	"output_file_type":"txt",
 	"delimiter":"\t"
 	},
+
 
 "input_info":
 	{
@@ -37,6 +39,7 @@
 	"y_low": 0.001,
 	"y_high": 1.0,
 	"yval_name": "mass_ratio",
+
 	"yval_unit": "None",
 
 	"fixed_parameter_1": 1.0,
@@ -54,9 +57,13 @@
 	"start_time": 1.0,
 	"end_time": 0.0,
 
+	"freq_length": 10000,
+
 	"waveform_type": "PhenomD",
 
 	"hc_generation_type": "lal_generate",
+
+	"waveform_generator": "lalsimulation",
 
 	"generation_base_parameters":
 		{
