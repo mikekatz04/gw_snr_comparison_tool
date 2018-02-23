@@ -25,6 +25,9 @@ import json
 
 from multiprocessing import Pool
 
+import warnings
+warnings.filterwarnings("ignore")
+
 Msun=1.989e30
 
 
@@ -58,6 +61,8 @@ def hchar_try(m1,m2,redshift, s1, s2,st,et,waveform_type):
 		f_obs, hc = fdw.hchar_func(m1,m2,redshift, s1, s2,st, et,waveform_type)
 		return f_obs, hc
 	except RuntimeError:
+		return [],[]
+	except IndexError:
 		return [],[]
 
 
@@ -104,8 +109,10 @@ class CalculateSignalClass:
 			return
 
 		#scale hc
-		hc_changed = self.hc_obs*(cosmo.luminosity_distance(self.z_b).value/cosmo.luminosity_distance(self.z).value)*((1+self.z)/(1+self.z_b))*(self.M/self.M_b)**(5./6.)*(self.f_s1/f_s2)**(1./6.)
-
+		try:
+			hc_changed = self.hc_obs*(cosmo.luminosity_distance(self.z_b).value/cosmo.luminosity_distance(self.z).value)*((1+self.z)/(1+self.z_b))*(self.M/self.M_b)**(5./6.)*(self.f_s1/f_s2)**(1./6.)
+		except ZeroDivisionError:
+			pdb.set_trace()
 
 		#Post newtonian expansion to 1st order from SNR calibration docs
 		
@@ -153,7 +160,10 @@ class CalculateSignalClass:
 			check = check[check>np.where(self.f_all>=self.f_mrg)[0][0]]
 
 		
-		self.f_rd = self.f_all[check[0]]
+		try:
+			self.f_rd = self.f_all[check[0]]
+		except IndexError:
+			pdb.set_trace()
 		return
 
 	def find_snr(self, sig_type, sensitivity_function):
@@ -208,17 +218,20 @@ class CalculateSignalClass:
 
 
 
-		if len(f_in) == 0:
+		if len(f_in) < 3:
 			return 1e-30
 
-		snr_integrand = interp1d(f_in, 1.0/f_in * (hc_in/sensitivity_function(f_in))**2, bounds_error = False, fill_value=1e-30)
+		try:
+			snr_integrand = interp1d(f_in, 1.0/f_in * (hc_in/sensitivity_function(f_in))**2, bounds_error = False, fill_value=1e-30)
+		except ValueError:
+			pdb.set_trace()
 
 		return np.sqrt(quad(snr_integrand, f_in[0], f_in[-1])[0])*self.snr_factor
 
 class file_read_out:
-	def __init__(self, pid, file_type, output_string, output_dict, num_x, num_y, xval_name, yval_name, par_1_name, par_2_name, par_3_name):
+	def __init__(self, pid, file_type, output_string, xvals, yvals, output_dict, num_x, num_y, xval_name, yval_name, par_1_name, par_2_name, par_3_name):
 		self.pid = pid
-		self.file_type, self.output_string, self.output_dict, self.num_x, self.num_y, self.xval_name, self.yval_name, self.par_1_name, self.par_2_name, self.par_3_name = file_type, output_string, output_dict, num_x, num_y, xval_name, yval_name, par_1_name, par_2_name, par_3_name
+		self.file_type, self.output_string, self.xvals, self.yvals, self.output_dict, self.num_x, self.num_y, self.xval_name, self.yval_name, self.par_1_name, self.par_2_name, self.par_3_name = file_type, output_string,  xvals, yvals,output_dict, num_x, num_y, xval_name, yval_name, par_1_name, par_2_name, par_3_name
 
 	def prep_output(self):
 		self.units_dict = {}
@@ -261,6 +274,19 @@ class file_read_out:
 
 			data = f.create_group('data')
 
+			x_col_name = self.pid['generate_info']['xval_name']
+			if 'x_col_name' in self.pid['output_info'].keys():
+				x_col_name = self.pid['output_info']['x_col_name']
+
+			dset = data.create_dataset(x_col_name, data = self.xvals, dtype = 'float64', chunks = True, compression = 'gzip', compression_opts = 9)
+
+			y_col_name = self.pid['generate_info']['yval_name']
+			if 'y_col_name' in self.pid['output_info'].keys():
+				y_col_name = self.pid['output_info']['y_col_name']
+
+			dset = data.create_dataset(y_col_name, data = self.yvals, dtype = 'float64', chunks = True, compression = 'gzip', compression_opts = 9)
+
+
 			for key in self.output_dict.keys():
 				dset = data.create_dataset(key, data = self.output_dict[key], dtype = 'float64', chunks = True, compression = 'gzip', compression_opts = 9)
 
@@ -272,7 +298,7 @@ class file_read_out:
 		header += '#xval_name: %s\n'%self.xval_name
 		header += '#num_x_pts: %i\n'%self.num_x
 		header += '#xval_unit: %s\n'%self.units_dict['xval_unit']
-
+		
 		header += '#yval_name: %s\n'%self.yval_name
 		header += '#num_y_pts: %i\n'%self.num_y
 		header += '#yval_unit: %s\n'%self.units_dict['yval_unit']
@@ -291,10 +317,25 @@ class file_read_out:
 
 		header += '#--------------------\n'
 
+		x_col_name = self.pid['generate_info']['xval_name']
+		if 'x_col_name' in self.pid['output_info'].keys():
+			x_col_name = self.pid['output_info']['x_col_name']
+
+		header += x_col_name + '\t'
+
+		y_col_name = self.pid['generate_info']['yval_name']
+		if 'y_col_name' in self.pid['output_info'].keys():
+			y_col_name = self.pid['output_info']['y_col_name']
+
+		header += y_col_name + '\t'
+
 		for key in self.output_dict.keys():
 			header += key + '\t'
 
-		data_out = np.asarray([self.output_dict[key] for key in self.output_dict.keys()]).T
+		x_and_y = np.asarray([self.xvals, self.yvals])
+		snr_out = np.asarray([self.output_dict[key] for key in self.output_dict.keys()]).T
+
+		data_out = np.concatenate([x_and_y.T, snr_out], axis=1)
 
 		np.savetxt(WORKING_DIRECTORY + '/' + self.output_string + '.' + self.file_type, data_out, delimiter = '\t',header = header, comments='')
 		return
@@ -392,13 +433,13 @@ class main_process:
 		self.num_y = int(self.gid['num_y'])
 
 		#declare 1D arrays of both paramters
-		if self.gid['xscale'] == 'lin':
+		if self.gid['xscale'] != 'lin':
 			self.xvals = np.logspace(np.log10(float(self.gid['x_low'])),np.log10(float(self.gid['x_high'])), self.num_x)
 
 		else:
 			self.xvals = np.linspace(float(self.gid['x_low']),float(self.gid['x_high']), self.num_x)
 
-		if self.gid['yscale'] == 'lin':
+		if self.gid['yscale'] != 'lin':
 			self.yvals = np.logspace(np.log10(float(self.gid['y_low'])),np.log10(float(self.gid['y_high'])), self.num_y)
 
 		else:
@@ -422,7 +463,7 @@ class main_process:
 
 		self.define_base_parameters_for_fast_generate()
 		#generate with lalsim
-		if gid['waveform_generator'] == 'lalsimulation':
+		if self.gid['waveform_generator'] == 'lalsimulation':
 			self.lal_sim_waveform_generate()
 
 		#premade waveform
@@ -437,8 +478,8 @@ class main_process:
 		if 'freq_length' in self.gid.keys():
 			freq_len = int(self.gid['freq_length'])
 
-		self.f_obs = np.logspace(np.log10(f_obs[0]), np.log10(f_obs[-1]), freq_len)
-		self.hc_obs = find_hc_obs(f_obs)
+		self.f_obs = np.logspace(np.log10(self.f_obs[0]), np.log10(self.f_obs[-1]), freq_len)
+		self.hc_obs = find_hc_obs(self.f_obs)
 
 		#establish source frame frequency for scaling laws
 		self.f_s1 = self.f_obs*(1+self.z_b)
@@ -463,8 +504,8 @@ class main_process:
 		self.s2_b = float(self.gid['generation_base_parameters']['fast_generate_s2base'])
 		self.start_time_b = float(self.gid['generation_base_parameters']['fast_generate_stbase'])
 		self.end_time_b = float(self.gid['generation_base_parameters']['fast_generate_etbase'])
-		self.m1 =  M_b*q_b/(1.0+q_b)
-		self.m2 = M_b/(1.0+q_b)
+		self.m1 =  self.M_b*self.q_b/(1.0+self.q_b)
+		self.m2 = self.M_b/(1.0+self.q_b)
 		self.waveform_type = self.gid['waveform_type']
 
 		return
@@ -555,6 +596,7 @@ def generate_contour_data(pid):
 	if gid['hc_generation_type'] == 'fast_generate':
 		running_process.read_in_base_waveform()
 
+
 	running_process.prep_find_list()
 	if pid['general']['generation_type'] == 'parallel':
 		running_process.prep_parallel()
@@ -563,21 +605,10 @@ def generate_contour_data(pid):
 	else:
 		running_process.run_single()
 
-	"""
-	trans_dict = OrderedDict()
-
-	trans_dict['x'], trans_dict['y'] = xvals, yvals
-
-	for key in final_dict.keys():
-		trans_dict[key] = final_dict[key]
-		final_dict[key] = None
-
-	final_dict = trans_dict
-	"""
-	file_out = file_read_out(pid, pid['output_info']['output_file_type'], pid['output_info']['output_file_name'], running_process.final_dict, running_process.num_x, running_process.num_y, gid['xval_name'], gid['yval_name'], gid['par_1_name'], gid['par_2_name'], gid['par_3_name'])
+	file_out = file_read_out(pid, pid['output_info']['output_file_type'], pid['output_info']['output_file_name'],  running_process.xvals, running_process.yvals, running_process.final_dict, running_process.num_x, running_process.num_y, gid['xval_name'], gid['yval_name'], gid['par_1_name'], gid['par_2_name'], gid['par_3_name'])
 
 	file_out.prep_output()
-
+	print('outputing file')
 	getattr(file_out, pid['output_info']['output_file_type'] + '_read_out')()
 
 	#create header for data_file
