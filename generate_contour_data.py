@@ -117,7 +117,7 @@ class CalculateSignalClass:
 		keep_hc = self.base_waveforms_f_obs[inds]
 
 		#scale hc
-		self.base_waveforms_hc_obs[inds] = np.squeeze(trans_wf.hc_obs*(cosmo.luminosity_distance(self.z_b).value/cosmo.luminosity_distance(self.z[inds,np.newaxis]).value)*((1+self.z[inds,np.newaxis])/(1+self.z_b))*(self.M[inds,np.newaxis]/self.M_b)**(5./6.)*(trans_wf.f_s1/f_s2)**(1./6.))
+		self.base_waveforms_hc_obs[inds] = self.averaging_factor*np.squeeze(trans_wf.hc_obs*(cosmo.luminosity_distance(self.z_b).value/cosmo.luminosity_distance(self.z[inds,np.newaxis]).value)*((1+self.z[inds,np.newaxis])/(1+self.z_b))*(self.M[inds,np.newaxis]/self.M_b)**(5./6.)*(trans_wf.f_s1/f_s2)**(1./6.))
 
 		if 'mrg' in self.extra_dict['signal_types'] or 'ins' in self.extra_dict['signal_types'] or 'rd' in self.extra_dict['signal_types']:
 			self.f_mrg[inds] = trans_wf.find_merger_frequency()/(self.M[inds] * (1.0 + self.z[inds]))
@@ -178,7 +178,6 @@ class CalculateSignalClass:
 		return
 
 	def find_snr(self, sensitivity_function):
-
 		snr_integrand = 1.0/self.f_in * (self.hc_in/sensitivity_function(self.f_in))**2
 		"""
 		num_checks = 10
@@ -408,10 +407,11 @@ class main_process:
 		if 'waveform_type' in self.gid.keys():
 			self.waveform_type = self.gid['waveform_type']
 
-	def read_in_noise_file(self, file_dict):
+	def read_in_noise_file(self, file_dict, wd_noise=False):
 		data = ascii.read(self.pid['input_info']['input_location'] + '/' + file_dict['name'])
 
-		self.labels.append(file_dict['name'][0:-4])
+		if wd_noise == False:
+			self.labels.append(file_dict['name'][0:-4])
 	
 		f_col_name = 'f'
 		if 'freq_column_label' in self.pid['input_info'].keys():
@@ -432,8 +432,8 @@ class main_process:
 		if file_dict['type'] == 'PSD':
 			amp = np.sqrt(amp)
 
-		if file_dict['type'] == 'PSD' or file_dict['type'] != 'ASD':
-			amp = np.sqrt(f)
+		if file_dict['type'] == 'PSD' or file_dict['type'] == 'ASD':
+			amp = amp*np.sqrt(f)
 
 
 		averaging_factor = np.sqrt(3./20.)
@@ -443,7 +443,7 @@ class main_process:
 			averaging_factor = file_dict['sensitivity_averaging_factor']
 
 		hn = amp*averaging_factor
-
+		
 		return f, hn
 
 	def read_in_sensitivity_curves(self):
@@ -453,12 +453,16 @@ class main_process:
 
 		#read in Sensitvity data
 		for i, file_dict in enumerate(self.sensecurves):
-			f, hn = self.read_in_noise_file(file_dict)
+			f, hn = self.read_in_noise_file(file_dict, wd_noise=False)
 
 			#place interpolated functions into dict with second including WD
 			if self.pid['general']['add_wd_noise'] == 'True' or self.pid['general']['add_wd_noise'] == 'Both' or self.pid['general']['add_wd_noise'] == 'both':
-				f_wd, hn_wd = self.read_in_noise_file(self.pid['input_info']['Galactic_background'])
-				self.wd_noise = interp1d(f_wd, hn_wd, bounds_error=False, fill_value=1e-30)
+				try:
+					self.wd_noise
+				except AttributeError:
+					f_wd, hn_wd = self.read_in_noise_file(self.pid['input_info']['Galactic_background'], wd_noise=True)
+					self.wd_noise = interp1d(f_wd, hn_wd, bounds_error=False, fill_value=1e-30)
+
 				wd_up = (hn/self.wd_noise(f) <= 1.0)
 				wd_down = (hn/self.wd_noise(f) > 1.0)
 
