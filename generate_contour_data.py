@@ -9,7 +9,7 @@ from astropy.cosmology import Planck13 as cosmo
 from astropy.io import ascii
 import lal
 import lalsimulation
-from scipy.integrate import quad
+from scipy import integrate
 import fd_waveform_generator as fdw
 from scipy.misc import derivative
 from scipy.optimize import fsolve
@@ -32,26 +32,20 @@ Msun=1.989e30
 
 
 
-def parallel_func(num_proc, binaries, sig_types, sensitivity_dict, waveform_dict):
-	print(num_proc,'start', len(binaries))
+def parallel_func(num_proc, binaries, sig_types, sensitivity_dict):
+	print(num_proc,'start', len(binaries.M))
 	#initialize SNR array
 	snr = OrderedDict()
 	for sc in sensitivity_dict.keys():
 		for sig_type in sig_types:
-			snr[sc + '_' + sig_type] = np.zeros(len(binaries))
+			snr[sc + '_' + sig_type] = np.zeros(len(binaries.M))
 
-	i=0
-	for binary in binaries:
-		binary.fast_generate(waveform_dict[(binary.q, binary.s1, binary.s2)])
+	binaries.create_waveforms()
 
+	for sig_type in sig_types:
+		binaries.prepare_snr(sig_type)
 		for sc in sensitivity_dict:
-			for sig_type in sig_types:
-				snr[sc + '_' + sig_type][i] = binary.find_snr(sig_type, sensitivity_dict[sc])
-		i += 1
-
-		#clear memory
-		for key in binary.__dict__.keys():
-			binary.__dict__[key] = None
+				snr[sc + '_' + sig_type] = binaries.find_snr(sensitivity_dict[sc])
 
 	print(num_proc, 'end')
 	return snr
@@ -67,11 +61,12 @@ def hchar_try(m1,m2,redshift, s1, s2,st,et,waveform_type):
 
 
 class CalculateSignalClass:
-	def __init__(self, M, q, z, s1, s2, start_time, end_time, waveform_type= '', extra_dict={}):
+	def __init__(self, pid, M, q, z, s1, s2, start_time, end_time, base_parameters, extra_dict={}):
+		self.pid = pid
 		self.M, self.q, self.z, self.s1, self.s2 = M, q, z, s1, s2
 		self.start_time, self.end_time = start_time, end_time
-		self.waveform_type = waveform_type
 		self.extra_dict = extra_dict
+		self.base_parameters = base_parameters
 
 		#parameters of second binary to scale against base
 		self.m1 = self.M*self.q/(1.0+self.q)
@@ -88,30 +83,62 @@ class CalculateSignalClass:
 		else:
 			self.snr_factor = 1.0
 
+		self.M_b, self.z_b, self.start_time_b, self.end_time_b, self.waveform_type, self.generate_function = base_parameters
 
+	def create_waveforms(self):
+		q_arr, s1_arr, s2_arr = np.meshgrid(np.unique(self.q), np.unique(self.s1), np.unique(self.s2))
+		q_arr, s1_arr, s2_arr = q_arr.ravel(), s1_arr.ravel(), s2_arr.ravel()
 
-	def fast_generate(self, base_waveform):
-		#scale frequencies
+		self.freq_len = 10000
+		if 'freq_length' in self.extra_dict.keys():
+			self.freq_len = int(self.extra_dict['freq_length'])
 
-		self.base_waveform = base_waveform
-		f_s2 = base_waveform.Mf/self.M
-		f_changed = f_s2/(1+self.z)
+		self.base_waveforms_f_obs = np.zeros((len(self.M), self.freq_len))
+		self.base_waveforms_hc_obs = np.zeros((len(self.M), self.freq_len))
+		if 'mrg' in self.extra_dict['signal_types'] or 'ins' in self.extra_dict['signal_types'] or 'rd' in self.extra_dict['signal_types']:
+			self.f_mrg = np.zeros(len(self.M))
 
-		f_start = self.find_f_start()
+		if 'rd' in self.extra_dict['signal_types'] or 'mrg' in self.extra_dict['signal_types']:
+			self.f_rd = np.zeros(len(self.M))
 
-		inds = np.where(f_changed >= f_start)[0]
+		for mr, spin1, spin2 in np.array([q_arr, s1_arr, s2_arr]).T:
+			self.fast_generate(mr, spin1, spin2)
 
-		if len(inds) <2:
-			self.f_all, self.hc_all =  [],[]
-			return
+		self.base_waveforms_hc_obs = self.cut_waveforms(freq_min=self.find_f_start())
+		return
+
+	def fast_generate(self, mr, spin1, spin2):
+		inds = np.where((self.q == mr) & (self.s1 == spin1) & (self.s2 == spin2))
+		trans_wf = BaseWaveform(self.pid, self.generate_function, mr, spin1, spin2, self.M_b, self.z_b, self.start_time_b, self.end_time_b, self.waveform_type)
+		f_s2 = np.squeeze(trans_wf.Mf/self.M[inds, np.newaxis])
+		
+		self.base_waveforms_f_obs[inds] = np.squeeze(f_s2/(1.0 + self.z[inds, np.newaxis]))
+
+		keep_hc = self.base_waveforms_f_obs[inds]
 
 		#scale hc
-		hc_changed = base_waveform.hc_obs*(cosmo.luminosity_distance(base_waveform.z_b).value/cosmo.luminosity_distance(self.z).value)*((1+self.z)/(1+base_waveform.z_b))*(self.M/base_waveform.M_b)**(5./6.)*(base_waveform.f_s1/f_s2)**(1./6.)
+		self.base_waveforms_hc_obs[inds] = np.squeeze(trans_wf.hc_obs*(cosmo.luminosity_distance(self.z_b).value/cosmo.luminosity_distance(self.z[inds,np.newaxis]).value)*((1+self.z[inds,np.newaxis])/(1+self.z_b))*(self.M[inds,np.newaxis]/self.M_b)**(5./6.)*(trans_wf.f_s1/f_s2)**(1./6.))
 
-		#Post newtonian expansion to 1st order from SNR calibration docs
-		self.f_all, self.hc_all =  f_changed[inds], hc_changed[inds]*self.averaging_factor
+		if 'mrg' in self.extra_dict['signal_types'] or 'ins' in self.extra_dict['signal_types'] or 'rd' in self.extra_dict['signal_types']:
+			self.f_mrg[inds] = trans_wf.find_merger_frequency()/(self.M[inds] * (1.0 + self.z[inds]))
+
+		if 'mrg' in self.extra_dict['signal_types'] or 'rd' in self.extra_dict['signal_types']:
+			self.f_rd[inds] = trans_wf.find_ringdown_frequency()/(self.M[inds] * (1.0 + self.z[inds]))
 
 		return
+
+	def cut_waveforms(self, freq_min=[], freq_max=[]):
+		factor = 1e-50
+
+		if len(freq_max) == 0 and len(freq_min) != 0:
+			hc_obs_trans = self.base_waveforms_hc_obs * (self.base_waveforms_f_obs >= freq_min[:,np.newaxis]) + factor*(self.base_waveforms_f_obs < freq_min[:,np.newaxis])
+
+		elif len(freq_min) == 0 and len(freq_max) != 0:
+			hc_obs_trans = self.base_waveforms_hc_obs * (self.base_waveforms_f_obs <=  freq_max[:,np.newaxis]) + factor*(self.base_waveforms_f_obs > freq_max[:,np.newaxis])
+
+		else:
+			hc_obs_trans = self.base_waveforms_hc_obs * ((self.base_waveforms_f_obs >= freq_min[:,np.newaxis]) & (self.base_waveforms_f_obs <= freq_max[:,np.newaxis])) + factor*((self.base_waveforms_f_obs < freq_min[:,np.newaxis]) & (self.base_waveforms_f_obs > freq_max[:,np.newaxis]))
+		return hc_obs_trans
 
 
 	def find_f_start(self):
@@ -124,59 +151,22 @@ class CalculateSignalClass:
 		N = self.m1*self.m2/(self.m1+self.m2)**2.
 		tau = N*(self.start_time*ct.c*ct.Julian_year)/(5.*(self.m1+self.m2)*ct.G*Msun/(ct.c**2.))
 		flow = 1./(8.*ct.pi*(self.m1+self.m2)*ct.G*Msun/(ct.c**2.)*tau**(3./8.))*(1.+((11./32)*N+743./2688.)*tau**(-1./4.))*ct.c
-
 		return flow/(1+self.z)
-
-	def find_merger_frequency(self):
-		self.f_mrg = self.base_waveform.Mf_mrg/(self.M*(1.+self.z))
-		return 
-
-	def find_ringdown_frequency(self):
-		self.f_rd = self.base_waveform.Mf_rd/(self.M*(1.+self.z))
-		return
-
-	def find_snr(self, sig_type, sensitivity_function):
-		if self.f_all == []:
-			return 1e-30
-
+		
+	def prepare_snr(self, sig_type):
+		self.f_in = self.base_waveforms_f_obs
 		if sig_type == 'all':
-			f_in, hc_in = self.f_all, self.hc_all
+			self.hc_in = self.base_waveforms_hc_obs
 
 		elif sig_type == 'ins':
-			try:
-				test = self.f_mrg
 
-			except AttributeError:
-				self.find_merger_frequency()
-			
-			f_in, hc_in = self.f_all[self.f_all<self.f_mrg], self.hc_all[self.f_all<self.f_mrg]
+			self.hc_in = self.cut_waveforms(freq_max = self.f_mrg)
 
 		elif sig_type == 'mrg':
-			try:
-				test = self.f_mrg
-
-			except AttributeError:
-				self.find_merger_frequency()	
-
-			try:
-				test = self.f_rd
-
-			except AttributeError:
-				self.find_ringdown_frequency()	
-
-			inds = np.where((self.f_all>=self.f_mrg) & (self.f_all<=self.f_rd))[0]
-
-			f_in, hc_in = self.f_all[inds], self.hc_all[inds]
+			self.hc_in = self.cut_waveforms(freq_min = self.f_mrg, freq_max = self.f_rd)
 
 		elif sig_type == 'rd':
-			try:
-				test = self.f_rd
-
-			except AttributeError:
-				self.find_ringdown_frequency()	
-
-			self.find_ringdown_frequency()
-			f_in, hc_in = self.f_all[self.f_all>self.f_rd], self.hc_all[self.f_all>self.f_rd]
+			self.hc_in = self.cut_waveforms(freq_min = self.f_rd)
 
 			#take first derivative and interpolate to find where first derivative is zero
 			#this will represent the local maximum in the signal
@@ -185,14 +175,104 @@ class CalculateSignalClass:
 			#if the first derivative never equals zero, find second derivative and interpolate
 			#find where second derivative equals zero representing inflection point of signal from positive 2nd derivative to negative where the merger ends and ringdown begins
 
+		return
+
+	def find_snr(self, sensitivity_function):
+
+		snr_integrand = 1.0/self.f_in * (self.hc_in/sensitivity_function(self.f_in))**2
+		"""
+		num_checks = 10
+		
+		out_check = []
+		for i in np.arange(num_checks):
+			st = time.time()
+			snr_trapz = np.sqrt(np.trapz(snr_integrand, f_in, axis=1))*self.snr_factor
+			out_check.append(time.time()-st)
+
+		print('trapz', "max:", np.max(out_check), "min:", np.min(out_check), "mean:", np.mean(out_check))
+
+		out_check = []
+		for i in np.arange(num_checks):
+			st = time.time()
+			snr_simps = np.sqrt(integrate.simps(snr_integrand, f_in, axis=1))*self.snr_factor
+			out_check.append(time.time()-st)
+
+		print('simps', "max:", np.max(out_check), "min:", np.min(out_check), "mean:", np.mean(out_check))
+
+		
+		snr_quad = []
+		for i in np.arange(len(f_in)):
+			snr_integrand = interp1d(f_in[i], 1.0/f_in[i] * (hc_in[i]/sensitivity_function(f_in[i]))**2, bounds_error = False, fill_value=1e-30)
+			snr_quad.append(np.sqrt(integrate.quad(snr_integrand, f_in[i][0], f_in[i][-1])[0])*self.snr_factor)
+			print(i)
+
+		snr_quad = np.asarray(snr_quad)
+		
+		pdb.set_trace()
+		"""
+
+		return np.sqrt(np.trapz(snr_integrand, self.f_in, axis=1))*self.snr_factor
 
 
-		if len(f_in) < 3:
-			return 1e-30
+class BaseWaveform:
+	def __init__(self, pid, generate_function, q, s1, s2, M_b, z_b, start_time_b, end_time_b, waveform_type):
+		self.pid = pid
+		self.q, self.s1, self.s2 = q, s1, s2
+		self.M_b, self.z_b, self.start_time_b, self.end_time_b, self.waveform_type = M_b, z_b, start_time_b, end_time_b, waveform_type
 
-		snr_integrand = interp1d(f_in, 1.0/f_in * (hc_in/sensitivity_function(f_in))**2, bounds_error = False, fill_value=1e-30)
+		#define own frequency array (allows you to control length)
+		freq_len = 10000
+		if 'freq_length' in self.pid['generate_info'].keys():
+			freq_len = int(self.pid['generate_info']['freq_length'])
 
-		return np.sqrt(quad(snr_integrand, f_in[0], f_in[-1])[0])*self.snr_factor
+		getattr(self, generate_function)()
+		#create interpolation function to define frequency points
+
+		find_hc_obs = interp1d(self.f_obs, self.hc_obs, bounds_error = False, fill_value = 'extrapolate')
+		self.f_obs = np.logspace(np.log10(self.f_obs[0]), np.log10(self.f_obs[-1]), freq_len)
+		self.hc_obs = find_hc_obs(self.f_obs)
+
+		#establish source frame frequency for scaling laws
+		self.f_s1 = self.f_obs*(1+self.z_b)
+
+		#establish dimensionless quantity of Mf to adjust frequencies from base
+		self.Mf = self.f_s1*self.M_b
+
+	def lal_sim_waveform_generate(self):
+		m1_b =  self.M_b*self.q/(1.0+self.q)
+		m2_b = self.M_b/(1.0+self.q)
+		self.f_obs, self.hc_obs = hchar_try(m1_b, m2_b, self.z_b, self.s1, self.s2, self.start_time_b, self.end_time_b, self.waveform_type)
+		return	
+
+	def file_read_in_for_base(self):
+		data = ascii.read(self.pid['input_info']['input_location'] + '/' + self.gid['waveform_generator'] + 'q_%.4f_s1_%.4f_s2_%.4f.txt'%(self.q, self.s1, self.s2))
+		self.f_obs = data['f']
+		self.hc_obs = data['hc']
+		return
+
+	def find_merger_frequency(self):
+		#Flanagan and Hughes
+		#return 0.018*ct.c**3/(ct.G*(m1+m2)*Msun) #hz
+		f_mrg = 1.0/(6.0**(3./2.)*ct.pi*(self.M_b*Msun*ct.G/ct.c**2)*(1+self.z_b))*ct.c
+		self.Mf_mrg = self.M_b*f_mrg*(1+self.z_b)
+		return self.Mf_mrg
+
+		 
+
+	def find_ringdown_frequency(self):
+		check = argrelextrema(self.hc_obs, np.greater)[0]
+
+		if len(check) == 0:
+			func = interp1d(self.Mf, self.hc_obs, bounds_error=False, fill_value='extrapolate')
+			#deriv = np.asarray([derivative(func, f, dx = 1e-8) for f in self.Mf[1:-1]])
+			deriv = np.gradient(self.hc_obs, self.f_obs)
+			check = argrelextrema(deriv, np.greater)[0]
+			check = check[check>np.where(self.Mf>=self.Mf_mrg)[0][0]]
+		try:
+			self.Mf[check[0]]
+		except IndexError:
+			pdb.set_trace()
+		return self.Mf[check[0]]
 
 class file_read_out:
 	def __init__(self, pid, file_type, output_string, xvals, yvals, output_dict, num_x, num_y, xval_name, yval_name, par_1_name, par_2_name, par_3_name):
@@ -306,68 +386,7 @@ class file_read_out:
 		np.savetxt(WORKING_DIRECTORY + '/' + self.output_string + '.' + self.file_type, data_out, delimiter = '\t',header = header, comments='')
 		return
 
-class BaseWaveform:
-	def __init__(self, pid, generate_function, q, s1, s2, M_b, z_b, start_time_b, end_time_b, waveform_type):
-		self.pid = pid
-		self.q, self.s1, self.s2 = q, s1, s2
-		self.M_b, self.z_b, self.start_time_b, self.end_time_b, self.waveform_type = M_b, z_b, start_time_b, end_time_b, waveform_type
-
-		#define own frequency array (allows you to control length)
-		freq_len = 10000
-		if 'freq_length' in self.pid['generate_info'].keys():
-			freq_len = int(self.pid['generate_info']['freq_length'])
-
-		getattr(self, generate_function)(q, s1, s2)
-		#create interpolation function to define frequency points
 		
-		find_hc_obs = interp1d(self.f_obs, self.hc_obs, bounds_error = False, fill_value = 'extrapolate')
-		self.f_obs = np.logspace(np.log10(self.f_obs[0]), np.log10(self.f_obs[-1]), freq_len)
-		self.hc_obs = find_hc_obs(self.f_obs)
-
-		#establish source frame frequency for scaling laws
-		self.f_s1 = self.f_obs*(1+self.z_b)
-
-		#establish dimensionless quantity of Mf to adjust frequencies from base
-		self.Mf = self.f_s1*self.M_b
-
-		if 'mrg' in self.pid['general']['signal_type'] or 'ins' in self.pid['general']['signal_type'] or 'rd' in self.pid['general']['signal_type']:
-			self.find_merger_frequency()
-
-		if 'rd' in self.pid['general']['signal_type'] or 'mrg' in self.pid['general']['signal_type']:
-			self.find_ringdown_frequency()
-
-	def lal_sim_waveform_generate(self, q, s1, s2):
-		m1_b =  self.M_b*q/(1.0+q)
-		m2_b = self.M_b/(1.0+q)
-		self.f_obs, self.hc_obs = hchar_try(m1_b, m2_b, self.z_b, s1, s2, self.start_time_b, self.end_time_b, self.waveform_type)
-		return	
-
-	def file_read_in_for_base(self, q, s1, s2):
-		data = ascii.read(self.pid['input_info']['input_location'] + '/' + self.gid['waveform_generator'] + 'q_%.4g_s1_%.4g_s2_%.4g.txt'%(q, s1,s2))
-		self.f_obs = data['f']
-		self.hc_obs = data['hc']
-		return
-
-	def find_merger_frequency(self):
-		#Flanagan and Hughes
-		#return 0.018*ct.c**3/(ct.G*(m1+m2)*Msun) #hz
-		f_mrg = 1.0/(6.0**(3./2.)*ct.pi*(self.M_b*Msun*ct.G/ct.c**2)*(1+self.z_b))*ct.c
-		self.Mf_mrg = self.M_b*f_mrg*(1+self.z_b)
-		return 
-
-	def find_ringdown_frequency(self):
-		check = argrelextrema(self.hc_obs, np.greater)[0]
-
-		if len(check) == 0:
-			func = interp1d(self.Mf, self.hc_obs, bounds_error=False, fill_value='extrapolate')
-			deriv = np.asarray([derivative(func, f, dx = 1e-5) for f in self.Mf[1:-1]])
-			check = argrelextrema(deriv, np.greater)[0]
-			check = check[check>np.where(self.Mf>=self.Mf_mrg)[0][0]]
-		
-		self.Mf_rd = self.Mf[check[0]]
-		
-		return
-
 class main_process:
 	def __init__(self, pid):
 		self.pid = pid
@@ -483,12 +502,18 @@ class main_process:
 
 		self.input_dict = {self.gid['xval_name']:self.xvals, self.gid['yval_name']:self.yvals, self.gid['par_1_name']:par_1, self.gid['par_2_name']:par_2, self.gid['par_3_name']:par_3, 'start_time': float(self.gid['start_time']), 'end_time':float(self.gid['end_time'])}
 
-		self.create_waveforms_dict(self.input_dict['mass_ratio'], self.input_dict['spin_1'], self.input_dict['spin_2'])
+		self.define_base_parameters_for_fast_generate()
 		return
 
-	def create_waveforms_dict(self, q, s1, s2):
-		q, s1, s2 = np.meshgrid(np.unique(q), np.unique(s1), np.unique(s2))
-		q, s1, s2 = q.ravel(), s1.ravel(), s2.ravel()
+	def define_base_parameters_for_fast_generate(self):
+		M_b = float(self.gid['generation_base_parameters']['fast_generate_Mbase'])
+		z_b = float(self.gid['generation_base_parameters']['fast_generate_zbase'])
+		start_time_b = float(self.gid['generation_base_parameters']['fast_generate_stbase'])
+		end_time_b = float(self.gid['generation_base_parameters']['fast_generate_etbase'])
+
+		waveform_type = ''
+		if 'waveform_type' in self.gid.keys():
+			waveform_type = self.gid['waveform_type']
 
 		#generate with lalsim
 		if self.pid['generate_info']['waveform_generator'] == 'lalsimulation':
@@ -498,24 +523,12 @@ class main_process:
 		else:
 			generate_function =  'file_read_in_for_base'
 
-		self.define_base_parameters_for_fast_generate()
-		self.base_waveforms_dict = {}
-		for mr, spin1, spin2 in np.array([q,s1,s2]).T:
-			self.base_waveforms_dict[(mr, spin1, spin2)] = BaseWaveform(self.pid, generate_function, mr, spin1, spin2, self.M_b, self.z_b, self.start_time_b, self.end_time_b, self.waveform_type)
-
-		return
-
-	def define_base_parameters_for_fast_generate(self):
-		self.M_b = float(self.gid['generation_base_parameters']['fast_generate_Mbase'])
-		self.z_b = float(self.gid['generation_base_parameters']['fast_generate_zbase'])
-		self.start_time_b = float(self.gid['generation_base_parameters']['fast_generate_stbase'])
-		self.end_time_b = float(self.gid['generation_base_parameters']['fast_generate_etbase'])
-		self.waveform_type = self.gid['waveform_type']
-
+		self.base_parameters = (M_b, z_b, start_time_b, end_time_b, waveform_type, generate_function)
+		
 		return
 
 
-	def add_averaging_factors(self):
+	def add_extras(self):
 		if 'snr_calculation_factors' in self.gid.keys():
 			if 'averaging_factor' in self.gid['snr_calculation_factors'].keys():
 				self.extra_dict['averaging_factor'] = float(self.gid['snr_calculation_factors']['averaging_factor'])
@@ -523,10 +536,13 @@ class main_process:
 			if 'snr_factor' in self.gid['snr_calculation_factors'].keys():
 				self.extra_dict['snr_factor'] = float(self.gid['snr_calculation_factors']['snr_factor'])
 
+		if 'freq_length' in self.gid.keys():
+			self.extra_dict['freq_length'] = self.gid['freq_length']
+
+		self.extra_dict['signal_types'] = self.pid['general']['signal_type']
+
 		return
 
-	def prep_find_list(self):
-		self.find_all = [CalculateSignalClass(self.input_dict['total_mass'][j], self.input_dict['mass_ratio'][j], self.input_dict['redshift'][j], self.input_dict['spin_1'][j], self.input_dict['spin_2'][j], self.input_dict['start_time'], self.input_dict['end_time'], self.waveform_type, self.extra_dict) for j in range(len(self.xvals))]
 
 	def prep_parallel(self):
 		st = time.time()
@@ -538,17 +554,18 @@ class main_process:
 
 		#set up inputs for each processor
 		#based on num_splits which indicates max number of boxes per processor
-		split_val = int(np.ceil(len(self.find_all)/num_splits))
+		split_val = int(np.ceil(len(self.xvals)/num_splits))
 
 		split_inds = [num_splits*i for i in np.arange(1,split_val)]
-
-		find_split = np.split(self.find_all,split_inds)
+		array_inds = np.arange(len(self.xvals))
+		find_split = np.split(array_inds,split_inds)
 
 		#start time ticker
 
 		self.args = []
 		for i, find_part in enumerate(find_split):
-			self.args.append((i, find_part,  self.pid['general']['signal_type'], self.sensitivity_dict, self.base_waveforms_dict))
+			binaries_class = CalculateSignalClass(self.pid, self.input_dict['total_mass'][find_part], self.input_dict['mass_ratio'][find_part], self.input_dict['redshift'][find_part], self.input_dict['spin_1'][find_part], self.input_dict['spin_2'][find_part],  self.input_dict['start_time'], self.input_dict['end_time'], self.base_parameters, self.extra_dict)
+			self.args.append((i, binaries_class,  self.pid['general']['signal_type'], self.sensitivity_dict))
 		return
 
 	def run_parallel(self):
@@ -567,7 +584,8 @@ class main_process:
 		return
 
 	def run_single(self):
-		self.final_dict = parallel_func(0, self.find_all, self.pid['general']['signal_type'], self.sensitivity_dict, self.base_waveforms_dict)
+		binaries_class = CalculateSignalClass(self.pid, self.input_dict['total_mass'], self.input_dict['mass_ratio'], self.input_dict['redshift'], self.input_dict['spin_1'], self.input_dict['spin_2'],  self.input_dict['start_time'], self.input_dict['end_time'], self.base_parameters, self.extra_dict)
+		self.final_dict = parallel_func(0, binaries_class,  self.pid['general']['signal_type'], self.sensitivity_dict)
 		return
 
 
@@ -584,8 +602,8 @@ def generate_contour_data(pid):
 
 	running_process = main_process(pid)
 	running_process.set_parameters()
+	running_process.add_extras()
 
-	running_process.prep_find_list()
 	if pid['general']['generation_type'] == 'parallel':
 		running_process.prep_parallel()
 		running_process.run_parallel()
