@@ -44,7 +44,7 @@
 		"file":[
 			{"name":"Sense_output/HBW_q5_s65_D.txt","label":"LISA_prop_curve_all"}
 			],
-		"type": "waterfall",
+		"type": "Waterfall",
 		"extra":
 			{"contour_vals": [0.0,1e1,1e2,1e3,1e4,1e5,1e6]}
 		},
@@ -53,7 +53,7 @@
 		"file":[
 			{"name":"Sense_output/HBW_q5_s65_D.txt","label": "Classic_LISA_all"}
 			],
-		"type": "ratio",
+		"type": "Ratio",
 
 		"control":
 			{"name":"Sense_output/HBW_q5_sn65_D.txt.txt","label":"LISA_prop_curve_all"},
@@ -71,7 +71,7 @@
 		"file":[
 			{"name":"Sense_output/HBW_q5_s65_D.txt","label":"LISA_prop_curve_all"}
 			],
-		"type": "ratio",
+		"type": "Ratio",
 
 		"control":
 			{"name":"Sense_output/HBW_q5_s65_D.txt", "label":"LISA_prop_curve_all_WD"},
@@ -86,7 +86,7 @@
 			{"name":"Sense_output/HBW_q5_s99_D.txt", "label":"Classic_LISA_all", "x_column_label":"x", "y_column_label":"y"} 
 			],
 		"indices": [0,1,2],
-		"type": "horizon",
+		"type": "Horizon",
 
 		"legend":
 			{

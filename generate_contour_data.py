@@ -10,7 +10,6 @@ from astropy.io import ascii
 import lal
 import lalsimulation
 from scipy import integrate
-import fd_waveform_generator as fdw
 from scipy.misc import derivative
 from scipy.optimize import fsolve
 from scipy.signal import argrelextrema
@@ -27,6 +26,15 @@ from multiprocessing import Pool
 
 import warnings
 warnings.filterwarnings("ignore")
+
+try:
+	import lal
+	import lalsimulation
+	import fd_waveform_generator as fdw
+except ImportError:
+	print("Cannot Use lal Waveform Generator. lalsimulation and/or lal are not installed.")
+	pass
+
 
 Msun=1.989e30
 
@@ -49,16 +57,6 @@ def parallel_func(num_proc, binaries, sig_types, sensitivity_dict):
 
 	print(num_proc, 'end')
 	return snr
-
-def hchar_try(m1,m2,redshift, s1, s2,st,et,waveform_type):
-	try:
-		f_obs, hc = fdw.hchar_func(m1,m2,redshift, s1, s2,st, et,waveform_type)
-		return f_obs, hc
-	except RuntimeError:
-		return [],[]
-	except IndexError:
-		return [],[]
-
 
 class CalculateSignalClass:
 	def __init__(self, pid, M, q, z, s1, s2, start_time, end_time, base_parameters, extra_dict={}):
@@ -179,36 +177,6 @@ class CalculateSignalClass:
 
 	def find_snr(self, sensitivity_function):
 		snr_integrand = 1.0/self.f_in * (self.hc_in/sensitivity_function(self.f_in))**2
-		"""
-		num_checks = 10
-		
-		out_check = []
-		for i in np.arange(num_checks):
-			st = time.time()
-			snr_trapz = np.sqrt(np.trapz(snr_integrand, f_in, axis=1))*self.snr_factor
-			out_check.append(time.time()-st)
-
-		print('trapz', "max:", np.max(out_check), "min:", np.min(out_check), "mean:", np.mean(out_check))
-
-		out_check = []
-		for i in np.arange(num_checks):
-			st = time.time()
-			snr_simps = np.sqrt(integrate.simps(snr_integrand, f_in, axis=1))*self.snr_factor
-			out_check.append(time.time()-st)
-
-		print('simps', "max:", np.max(out_check), "min:", np.min(out_check), "mean:", np.mean(out_check))
-
-		
-		snr_quad = []
-		for i in np.arange(len(f_in)):
-			snr_integrand = interp1d(f_in[i], 1.0/f_in[i] * (hc_in[i]/sensitivity_function(f_in[i]))**2, bounds_error = False, fill_value=1e-30)
-			snr_quad.append(np.sqrt(integrate.quad(snr_integrand, f_in[i][0], f_in[i][-1])[0])*self.snr_factor)
-			print(i)
-
-		snr_quad = np.asarray(snr_quad)
-		
-		pdb.set_trace()
-		"""
 
 		return np.sqrt(np.trapz(snr_integrand, self.f_in, axis=1))*self.snr_factor
 
@@ -227,7 +195,10 @@ class BaseWaveform:
 		getattr(self, generate_function)()
 		#create interpolation function to define frequency points
 
-		find_hc_obs = interp1d(self.f_obs, self.hc_obs, bounds_error = False, fill_value = 'extrapolate')
+		try:
+			find_hc_obs = interp1d(self.f_obs, self.hc_obs, bounds_error = False, fill_value = 'extrapolate')
+		except ValueError:
+			pdb.set_trace()
 		self.f_obs = np.logspace(np.log10(self.f_obs[0]), np.log10(self.f_obs[-1]), freq_len)
 		self.hc_obs = find_hc_obs(self.f_obs)
 
@@ -240,13 +211,23 @@ class BaseWaveform:
 	def lal_sim_waveform_generate(self):
 		m1_b =  self.M_b*self.q/(1.0+self.q)
 		m2_b = self.M_b/(1.0+self.q)
-		self.f_obs, self.hc_obs = hchar_try(m1_b, m2_b, self.z_b, self.s1, self.s2, self.start_time_b, self.end_time_b, self.waveform_type)
+		self.f_obs, self.hc_obs = fdw.hchar_func(m1_b, m2_b, self.z_b, self.s1, self.s2, self.start_time_b, self.end_time_b, self.waveform_type)
 		return	
 
 	def file_read_in_for_base(self):
-		data = ascii.read(self.pid['input_info']['input_location'] + '/' + self.gid['waveform_generator'] + 'q_%.4f_s1_%.4f_s2_%.4f.txt'%(self.q, self.s1, self.s2))
-		self.f_obs = data['f']
-		self.hc_obs = data['hc']
+		file_dict = self.pid['generate_info']['waveform_generator']
+
+		data = ascii.read(self.pid['input_info']['input_location'] + '/' + file_dict['file_name_start'] + '_' + 'q_%.4f_s1_%.4f_s2_%.4f.'%(self.q, self.s1, self.s2) + file_dict['file_extension'])
+
+		freq_column_label = 'f'
+		if 'freq_column_label' in file_dict.keys():
+			freq_column_label = file_dict['freq_column_label']
+
+		hchar_column_label = 'hc'
+		if 'hchar_column_label' in file_dict.keys():
+			hchar_column_label = file_dict['hchar_column_label']
+		self.f_obs = data[freq_column_label]
+		self.hc_obs = data[hchar_column_label]
 		return
 
 	def find_merger_frequency(self):
@@ -267,10 +248,14 @@ class BaseWaveform:
 			deriv = np.gradient(self.hc_obs, self.f_obs)
 			check = argrelextrema(deriv, np.greater)[0]
 			check = check[check>np.where(self.Mf>=self.Mf_mrg)[0][0]]
+
 		try:
 			self.Mf[check[0]]
 		except IndexError:
 			pdb.set_trace()
+
+		np.savetxt('test_ringdown/check_%.4f_%.4f.txt'%(self.q, self.s1), np.array([self.Mf, self.hc_obs]).T, header='f\thc')
+		np.savetxt('test_ringdown/rd_%.4f_%.4f.txt'%(self.q, self.s1), np.array([self.Mf[check[0]], self.hc_obs[check[0]]]))
 		return self.Mf[check[0]]
 
 class file_read_out:
@@ -492,7 +477,7 @@ class main_process:
 			self.yvals = np.logspace(np.log10(float(self.gid['y_low'])),np.log10(float(self.gid['y_high'])), self.num_y)
 
 		else:
-			self.yvals = np.logspace(float(self.gid['y_low']),float(self.gid['y_high']), self.num_y)
+			self.yvals = np.linspace(float(self.gid['y_low']),float(self.gid['y_high']), self.num_y)
 		#Additional Parameters
 
 		#mass ratio entry (b is for base, but mass ratio should not change becuase it changes the nature of the waveform)
@@ -520,8 +505,11 @@ class main_process:
 			waveform_type = self.gid['waveform_type']
 
 		#generate with lalsim
-		if self.pid['generate_info']['waveform_generator'] == 'lalsimulation':
-			generate_function = 'lal_sim_waveform_generate'
+		if type(self.pid['generate_info']['waveform_generator']) != dict:
+			if self.pid['generate_info']['waveform_generator'] == 'lalsimulation':
+				generate_function = 'lal_sim_waveform_generate'
+			else:
+				generate_function =  'file_read_in_for_base'
 
 		#premade waveform
 		else:
@@ -627,8 +615,7 @@ def generate_contour_data(pid):
 	print(time.time()-begin_time)
 
 if __name__ == '__main__':
-	plot_info_dict = json.load(open(sys.argv[1], 'r'),
-		object_pairs_hook=OrderedDict)
+	plot_info_dict = json.load(open(sys.argv[1], 'r'))
 
 	generate_contour_data(plot_info_dict)
 				
